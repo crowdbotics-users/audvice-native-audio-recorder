@@ -8,6 +8,7 @@
 
 import React, {Component} from 'react';
 import {Platform, StyleSheet, Text, View, TouchableOpacity} from 'react-native';
+import Permissions from 'react-native-permissions'
 
 import AudioRecorder from './library_module'
 // import AudioRecorder from 'react-native-audio-recorder'
@@ -20,7 +21,38 @@ export default class App extends Component<Props> {
   }
 
   componentDidMount() {
-    this.audioRecoder.initialize()
+    this.permissionCheck()
+  }
+
+  permissionCheck() {
+    if (Platform.OS === 'android') {
+      Permissions.checkMultiple(['microphone', 'storage'])
+      .then(response => {        
+        var permissionArray = []
+        if (response.microphone !== 'authorized') {
+          Permissions.request('microphone')
+          .then(response => {
+            if (response.storage !== 'authorized') {
+              Permissions.request('storage')
+              .then(response => {
+                this.audioRecoder.initialize()
+              })
+            }else{              
+              this.audioRecoder.initialize()
+            }
+          })
+        } else {   
+          if (response.storage !== 'authorized') {
+            Permissions.request('storage')
+            .then(response => {
+              this.audioRecoder.initialize()
+            })
+          }else{            
+            this.audioRecoder.initialize()
+          }       
+        }       
+      })
+    }
   }
 
   onPressPlay() {
@@ -38,7 +70,8 @@ export default class App extends Component<Props> {
   render() {
     return (
       <View style={styles.container}>
-        <AudioRecorder 
+        <AudioRecorder
+          style={{width: '100%', height: '25%'}}
           height={100}
           width={100}
           ref={ref => this.audioRecoder = ref}

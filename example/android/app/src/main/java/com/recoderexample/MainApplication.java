@@ -1,4 +1,4 @@
-package com.example;
+package com.recoderexample;
 
 import android.app.Application;
 
