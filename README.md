@@ -34,6 +34,52 @@
       compile project(':react-native-audio-recorder')
   	```
 
+### Post installation
+On *iOS* you need to add a usage description to `Info.plist`:
+
+```xml
+<key>NSMicrophoneUsageDescription</key>
+<string>This sample uses the microphone to record your speech and convert it to text.</string>
+```
+
+On *Android* you need to add a permission to `AndroidManifest.xml`:
+
+```xml
+<uses-permission android:name="android.permission.RECORD_AUDIO" />
+<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+```
+Also, android above `Marshmallow` needs runtime permission to record audio. Using [react-native-permissions](https://github.com/yonahforst/react-native-permissions) will help you out with this problem. Below is sample usage before when started the recording.
+```javascript
+if (Platform.OS === 'android') {
+  Permissions.checkMultiple(['microphone', 'storage'])
+	.then(response => {        
+		var permissionArray = []
+		if (response.microphone !== 'authorized') {
+			Permissions.request('microphone')
+			.then(response => {
+				if (response.storage !== 'authorized') {
+					Permissions.request('storage')
+					.then(response => {
+						this.audioRecoder.initialize()
+					})
+				}else{              
+					this.audioRecoder.initialize()
+				}
+			})
+		} else {   
+			if (response.storage !== 'authorized') {
+				Permissions.request('storage')
+				.then(response => {
+					this.audioRecoder.initialize()
+				})
+			}else{            
+				this.audioRecoder.initialize()
+			}       
+		}       
+	})
+}
+```
+
 ## Usage
 ```javascript
 import AudioRecorder from 'react-native-audio-recorder';
