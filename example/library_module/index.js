@@ -2,11 +2,13 @@
 import React from 'react'
 import {
   NativeModules,
-  View,
+  Platform,
   Text,
   StyleSheet,
   ViewPropTypes,
-  requireNativeComponent
+  requireNativeComponent,
+  UIManager,
+  findNodeHandle
 } from 'react-native'
 import PropTypes from 'prop-types'
 
@@ -22,54 +24,51 @@ export default class AudioRecorder extends React.Component {
   }
 
   initialize() {
-    this.setState({
-      lastaction: 'initialize'
-    })
+    RNAudioRecorder.initialize(findNodeHandle(this.recorderView))
   }
 
   startRecording(filename, startTimeInMS) {
-    this.setState({
-      lastaction: `startRecording filename: ${filename}, starttime: ${startTimeInMS}`
-    })
+    RNAudioRecorder.startRecording(findNodeHandle(this.recorderView), filename, startTimeInMS)
   }
 
   stopRecording(){
-    this.setState({
-      lastaction: `stopRecording`
-    })
+    RNAudioRecorder.stopRecording(findNodeHandle(this.recorderView))
+      .then(res => {
+        console.warn(res);
+      })
+      .catch((err) => console.warn(err))
   }
 
   play() {
-    this.setState({
-      lastaction: `play`
-    })
+    RNAudioRecorder.play(findNodeHandle(this.recorderView))
   }
 
   renderByFile(filename){
-    this.setState({
-      lastaction: `renderByFile filename: ${filename}`
-    })
+    RNAudioRecorder.renderByFile(findNodeHandle(this.recorderView), filename)
   }
 
   cut(filename, fromTime, toTime){
-    this.setState({
-      lastaction: `cut filename: ${filename}, fromTime: ${fromTime}, toTime: ${toTime}`
-    })
+    RNAudioRecorder.cut(findNodeHandle(this.recorderView), filename, fromTime, toTime)
   }
 
   destroy() {
-    this.setState({
-      lastaction: `destroy`
-    })
+    RNAudioRecorder.destroy(findNodeHandle(this.recorderView))
   }
 
   render() {
+    const {
+      width,
+      height,
+      onScroll,
+      pixelsPerSecond,
+      plotLineColor      
+    } = this.props
     return(
-      <View style={[this.props.style, {backgroundColor: 'grey', }]}>
-        <Text>JS Demo Module</Text>
-        <Text>{this.state.lastaction}</Text>
-        <RNAudioRecorderView style={{width: 100, height: 20}}/>
-      </View>
+      <RNAudioRecorderView style={this.props.style} status={this.state.lastaction}
+        ref={ref => this.recorderView = ref}
+        onScroll={onScroll}
+        pixelsPerSecond={pixelsPerSecond}
+        plotLineColor={plotLineColor}/>
     )
   }
 }
