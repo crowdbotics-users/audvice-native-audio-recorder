@@ -64,7 +64,7 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
                 View view = nativeViewHierarchyManager.resolveView(viewId);
                 if (view instanceof RNAudioRecorderView) {
                     RNAudioRecorderView audioRecorderView = (RNAudioRecorderView)view;
-                    audioRecorderView.setStatus("stopRecording from Method");
+                    audioRecorderView.stopRecording("pause");
                     promise.resolve("filename");
                 } else {
                     promise.reject("error", "Not found view");
@@ -82,7 +82,8 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
                 View view = nativeViewHierarchyManager.resolveView(viewId);
                 if (view instanceof RNAudioRecorderView) {
                     RNAudioRecorderView audioRecorderView = (RNAudioRecorderView)view;
-                    audioRecorderView.setStatus("Native Start Recording: " + filename + " - " + offset);
+                    // TODO: add file and offset
+                    audioRecorderView.startRecording();
                 }
             }
         });
@@ -97,7 +98,7 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
                 View view = nativeViewHierarchyManager.resolveView(viewId);
                 if (view instanceof RNAudioRecorderView) {
                     RNAudioRecorderView audioRecorderView = (RNAudioRecorderView)view;
-                    audioRecorderView.setStatus("Native Play");
+                    audioRecorderView.play();
                 }
             }
         });
