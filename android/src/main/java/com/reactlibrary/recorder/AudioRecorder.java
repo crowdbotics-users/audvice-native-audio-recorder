@@ -172,37 +172,38 @@ public class AudioRecorder {
 
                             e.encode(buffer, 0, readSize);
 
-                            short[] dbBuf;
-                            int dbSize;
-                            int readSizeUpdate;
-                            if (dbBuffer != null) {
-                                ShortBuffer bb = ShortBuffer.allocate(dbBuffer.position() + readSize);
-                                dbBuffer.flip();
-                                bb.put(dbBuffer);
-                                bb.put(buffer, 0, readSize);
-                                dbBuf = new short[bb.position()];
-                                dbSize = dbBuf.length;
-                                bb.flip();
-                                bb.get(dbBuf, 0, dbBuf.length);
-                            } else {
-                                dbBuf = buffer;
-                                dbSize = readSize;
-                            }
-                            readSizeUpdate = dbSize / samplesUpdateStereo * samplesUpdateStereo;
-                            for (int i = 0; i < readSizeUpdate; i += samplesUpdateStereo) {
-                                double a = RawSamples.getAmplitude(dbBuf, i, samplesUpdateStereo);
-                                if (a != 0)
-                                    silence = samplesTime + (i + samplesUpdateStereo) / Sound.getChannels(context);
-                                double dB = RawSamples.getDB(a);
-                                Post(PINCH, dB);
-                            }
-                            int readSizeLen = dbSize - readSizeUpdate;
-                            if (readSizeLen > 0) {
-                                dbBuffer = ShortBuffer.allocate(readSizeLen);
-                                dbBuffer.put(dbBuf, readSizeUpdate, readSizeLen);
-                            } else {
-                                dbBuffer = null;
-                            }
+                            Post(PINCH, buffer);
+
+//                            short[] dbBuf;
+//                            int dbSize;
+//                            int readSizeUpdate;
+//                            if (dbBuffer != null) {
+//                                ShortBuffer bb = ShortBuffer.allocate(dbBuffer.position() + readSize);
+//                                dbBuffer.flip();
+//                                bb.put(dbBuffer);
+//                                bb.put(buffer, 0, readSize);
+//                                dbBuf = new short[bb.position()];
+//                                dbSize = dbBuf.length;
+//                                bb.flip();
+//                                bb.get(dbBuf, 0, dbBuf.length);
+//                            } else {
+//                                dbBuf = buffer;
+//                                dbSize = readSize;
+//                            }
+//                            readSizeUpdate = dbSize / samplesUpdateStereo * samplesUpdateStereo;
+//                            for (int i = 0; i < readSizeUpdate; i += samplesUpdateStereo) {
+//                                double a = RawSamples.getAmplitude(dbBuf, i, samplesUpdateStereo);
+//                                if (a != 0)
+//                                    silence = samplesTime + (i + samplesUpdateStereo) / Sound.getChannels(context);
+//                                double dB = RawSamples.getDB(a);
+//                            }
+//                            int readSizeLen = dbSize - readSizeUpdate;
+//                            if (readSizeLen > 0) {
+//                                dbBuffer = ShortBuffer.allocate(readSizeLen);
+//                                dbBuffer.put(dbBuf, readSizeUpdate, readSizeLen);
+//                            } else {
+//                                dbBuffer = null;
+//                            }
 
                             samplesTime += samples;
                             samplesTimeCount += samples;

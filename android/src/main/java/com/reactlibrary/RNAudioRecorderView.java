@@ -2,42 +2,28 @@ package com.reactlibrary;
 
 import android.Manifest;
 import android.content.Context;
-import android.content.DialogInterface;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
-import android.graphics.Rect;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Message;
-import android.preference.PreferenceManager;
 import android.support.v4.app.ActivityCompat;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.view.WindowCallbackWrapper;
-import android.text.Layout;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Gravity;
-import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.Window;
-import android.widget.Button;
-import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.github.axet.androidlibrary.animations.MarginBottomAnimation;
 import com.github.axet.androidlibrary.sound.AudioTrack;
-import com.github.axet.androidlibrary.widgets.PopupWindowCompat;
 import com.reactlibrary.recorder.AudioRecorder;
 import com.reactlibrary.recorder.PitchView;
 import com.reactlibrary.recorder.RawSamples;
 import com.reactlibrary.recorder.RecordConfig;
 import com.reactlibrary.recorder.Sound;
 import com.reactlibrary.recorder.WaveformView;
-import com.reactlibrary.recorder.utils.Utils;
 
 import java.io.File;
 import java.nio.ShortBuffer;
@@ -99,10 +85,15 @@ public class RNAudioRecorderView extends RelativeLayout {
 
         recording.updateBufferSize(false);
 
+        // init waveform
+        DisplayMetrics metrics = getContext().getResources().getDisplayMetrics();
+        mWaveForm.setDensity(metrics.density);
+
         loadSamples();
     }
 
     void loadSamples() {
+//        recording.storage.getTempRecording().delete();
         File f = recording.storage.getTempRecording();
         if (!f.exists()) {
             recording.samplesTime = 0;
@@ -134,7 +125,8 @@ public class RNAudioRecorderView extends RelativeLayout {
 //            pitch.add(dB);
 //        }
 
-        mWaveForm.setSoundFile(rs, recording.sampleRate, 1024);
+        mWaveForm.setSoundFile(rs, recording.sampleRate, 100);
+        mWaveForm.invalidate();
 
         updateSamples(recording.samplesTime);
 
@@ -289,7 +281,7 @@ public class RNAudioRecorderView extends RelativeLayout {
         @Override
         public void handleMessage(Message msg) {
             if (msg.what == AudioRecorder.PINCH)
-                pitch.add((Double) msg.obj);
+                mWaveForm.addNewBuffer((short[]) msg.obj);
             if (msg.what == AudioRecorder.UPDATESAMPLES)
                 updateSamples((Long) msg.obj);
 //            if (msg.what == AudioRecorder.PAUSED) {
