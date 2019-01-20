@@ -39,6 +39,10 @@ public class RNAudioRecorderView extends RelativeLayout {
     private long editSample;
     private AudioTrack play;
     WaveformView mWaveForm;
+    private boolean mTouchDragging = false;
+    private float mTouchStart = 0;
+    private int mTouchInitialOffset = 0;
+    private float mFlingVelocity = 0;
 
     public RNAudioRecorderView(Context context) {
         super(context);
@@ -88,6 +92,34 @@ public class RNAudioRecorderView extends RelativeLayout {
         // init waveform
         DisplayMetrics metrics = getContext().getResources().getDisplayMetrics();
         mWaveForm.setDensity(metrics.density);
+        mWaveForm.setListener(new WaveformView.WaveformListener() {
+            @Override
+            public void waveformTouchStart(float x) {
+                mTouchDragging = true;
+                mTouchStart = x;
+                mTouchInitialOffset = mWaveForm.getOffset();
+                mFlingVelocity = 0;
+            }
+
+            @Override
+            public void waveformTouchMove(float x) {
+                mWaveForm.setOffset(mTouchInitialOffset + (int)(mTouchStart - x));
+            }
+
+            @Override
+            public void waveformTouchEnd() {
+                mTouchDragging = false;
+            }
+
+            @Override
+            public void waveformFling(float x) {
+            }
+
+            @Override
+            public void waveformDraw() {
+
+            }
+        });
 
         loadSamples();
     }

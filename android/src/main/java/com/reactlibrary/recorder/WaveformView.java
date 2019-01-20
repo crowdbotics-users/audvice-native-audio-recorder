@@ -35,8 +35,6 @@ public class WaveformView extends View {
         public void waveformTouchEnd();
         public void waveformFling(float x);
         public void waveformDraw();
-        public void waveformZoomIn();
-        public void waveformZoomOut();
     };
 
     // Colors
@@ -158,6 +156,7 @@ public class WaveformView extends View {
 
     public void setOffset(int offset) {
         mOffset = offset;
+        invalidate();
     }
 
     public int getOffset() {
