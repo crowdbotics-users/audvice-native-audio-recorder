@@ -8,7 +8,6 @@ import android.media.AudioRecord;
 import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.Handler;
-import android.os.PowerManager;
 import android.os.Process;
 
 import com.reactlibrary.recorder.encoders.Encoder;
@@ -49,19 +48,19 @@ public class AudioRecorder {
 
     public ShortBuffer dbBuffer = null; // PinchView samples buffer
 
-    public int pitchTime; // screen width
+    public int updateTimeInMs; // screen width
 
     RecordConfig config;
 
-    public AudioRecorder(Context context, int pitchTime, RecordConfig config) {
+    public AudioRecorder(Context context, RecordConfig config) {
         this.config = config;
         this.context = context;
-        this.pitchTime = pitchTime;
+        this.updateTimeInMs = 100;
         storage = new Storage(context);
         sound = new Sound(context);
 
         sampleRate = Sound.getSampleRate(context);
-        samplesUpdate = (int) (pitchTime * sampleRate / 1000f);
+        samplesUpdate = (int) (updateTimeInMs * sampleRate / 1000f);
         samplesUpdateStereo = samplesUpdate * Sound.getChannels(context);
 
         final SharedPreferences shared = android.preference.PreferenceManager.getDefaultSharedPreferences(context);
@@ -88,8 +87,6 @@ public class AudioRecorder {
 
     public void startRecording() {
         sound.silent();
-
-        final SharedPreferences shared = android.preference.PreferenceManager.getDefaultSharedPreferences(context);
 
         int user = MediaRecorder.AudioSource.MIC;
 
@@ -291,19 +288,13 @@ public class AudioRecorder {
                 // from file. better then confusing user we cut them on next resumeRecording.
 
                 long l = 1000;
-                l = l / pitchTime * pitchTime;
+                l = l / updateTimeInMs * updateTimeInMs;
                 samplesUpdate = (int) (l * sampleRate / 1000.0);
             } else {
                 samplesUpdate = this.samplesUpdate;
             }
 
             bufferSize = samplesUpdate * Sound.getChannels(context);
-        }
-    }
-
-    public boolean isForeground() {
-        synchronized (bufferSizeLock) {
-            return bufferSize == this.samplesUpdate * Sound.getChannels(context);
         }
     }
 

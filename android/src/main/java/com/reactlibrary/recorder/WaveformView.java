@@ -53,9 +53,11 @@ public class WaveformView extends View {
     private WaveformListener mListener;
     private GestureDetector mGestureDetector;
     private boolean mInitialized;
-    private short mMaxValue = 255;
+    private short mMaxValue = 4096;
     private short mMinValue = 0;
     private long mChunkIndex = 0;
+    private boolean mAutoSeeking = false;
+    private double mLastGain = -1;
 
     public WaveformView(Context context) {
         super(context);
@@ -83,6 +85,7 @@ public class WaveformView extends View {
                 context,
                 new GestureDetector.SimpleOnGestureListener() {
                     public boolean onFling(MotionEvent e1, MotionEvent e2, float vx, float vy) {
+                        if (mAutoSeeking) return false;
                         mListener.waveformFling(vx);
                         return true;
                     }
@@ -99,6 +102,9 @@ public class WaveformView extends View {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+
+        if (mAutoSeeking) return false;
+
         if (mGestureDetector.onTouchEvent(event)) {
             return true;
         }
@@ -121,11 +127,14 @@ public class WaveformView extends View {
         return mSoundFile != null;
     }
 
-    public void setSoundFile(RawSamples soundFile, int sampleRate, int pixelsPerSec) {
+    public void setSoundFile(RawSamples soundFile) {
         mSoundFile = soundFile;
+        computeDoublesForAllZoomLevels();
+    }
+
+    public void setConfig(int sampleRate, int pixelsPerSec) {
         mSampleRate = sampleRate;
         mSamplesPerPixel = sampleRate/ pixelsPerSec;
-        computeDoublesForAllZoomLevels();
     }
 
     public boolean isInitialized() {
@@ -154,8 +163,23 @@ public class WaveformView extends View {
                 (mSampleRate) + 0.5);
     }
 
+    public void setPlaySeek(long msecs) {
+        long offset = msecs * mSampleRate / 1000 / mSamplesPerPixel;
+        setOffset((int)offset);
+    }
+
+    public void seekLastPos() {
+        setOffset(mValues.size());
+    }
+
+    public long getCurrentPosInMs() {
+        long msecs = mOffset * 1000 * mSamplesPerPixel / mSampleRate;
+        return msecs;
+    }
+
     public void setOffset(int offset) {
-        mOffset = offset;
+        mOffset = Math.max(0, offset);
+        mOffset = Math.min(mOffset, mValues.size());
         invalidate();
     }
 
@@ -165,6 +189,14 @@ public class WaveformView extends View {
 
     public void setListener(WaveformListener listener) {
         mListener = listener;
+    }
+
+    public void setAutoSeeking(boolean audoSeeking) {
+        mAutoSeeking = audoSeeking;
+    }
+
+    public boolean isAutoSeeking() {
+        return mAutoSeeking;
     }
 
     public void setDensity(float density) {
@@ -181,8 +213,6 @@ public class WaveformView extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        if (mSoundFile == null)
-            return;
 
         // Draw waveform
         int measuredWidth = getMeasuredWidth();
@@ -288,20 +318,19 @@ public class WaveformView extends View {
 
         mValues.clear();
         int value;
-        double gain;
         short[] buffer = new short[mSamplesPerPixel];
         mSoundFile.open(0, mSamplesPerPixel);
-        mMaxValue = 1;
         int lastLen = 0;
         for (int i = 0; i < numFrames; i++) {
-            gain = -1;
+            mLastGain = -1;
             lastLen = mSoundFile.read(buffer);
             for (int j = 0; j < lastLen; j++) {
                 value = buffer[j];
-                gain = Math.max(gain, value);
+                mLastGain = Math.max(mLastGain, value);
             }
-            mMaxValue = (short) Math.max(mMaxValue, (double) gain);
-            mValues.add(gain);
+            if (lastLen < mSamplesPerPixel) continue;
+            mValues.add(mLastGain);
+            mLastGain = 0;
         }
 
         mSoundFile.close();
@@ -317,18 +346,15 @@ public class WaveformView extends View {
     }
 
     public void addNewBuffer(short[] buffer) {
-        mChunkIndex = 0;
-        double gain = 0;
         for (int i = 0; i< buffer.length; i++) {
-            gain = Math.max(gain, (double)buffer[i]);
-            if (mChunkIndex >= mSamplesPerPixel) {
-                mValues.add(gain);
-                mMaxValue = (short) Math.max(mMaxValue, (double) gain);
-                gain = 0;
-                mChunkIndex = 0;
-                continue;
-            }
+            mLastGain = Math.max(mLastGain, (double)buffer[i]);
             mChunkIndex++;
+            if (mChunkIndex >= mSamplesPerPixel) {
+                mValues.add(mLastGain);
+//                mMaxValue = (short) Math.max(mMaxValue, (double) gain);
+                mLastGain = 0;
+                mChunkIndex = 0;
+            }
         }
         mLength = mValues.size();
         mOffset = mLength;

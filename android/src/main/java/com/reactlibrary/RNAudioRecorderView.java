@@ -19,7 +19,6 @@ import android.widget.Toast;
 
 import com.github.axet.androidlibrary.sound.AudioTrack;
 import com.reactlibrary.recorder.AudioRecorder;
-import com.reactlibrary.recorder.PitchView;
 import com.reactlibrary.recorder.RawSamples;
 import com.reactlibrary.recorder.RecordConfig;
 import com.reactlibrary.recorder.Sound;
@@ -35,7 +34,6 @@ public class RNAudioRecorderView extends RelativeLayout {
     TextView mTvStatus;
     RecordConfig config;
     AudioRecorder recording;
-    PitchView pitch;
     private long editSample;
     private AudioTrack play;
     WaveformView mWaveForm;
@@ -43,6 +41,7 @@ public class RNAudioRecorderView extends RelativeLayout {
     private float mTouchStart = 0;
     private int mTouchInitialOffset = 0;
     private float mFlingVelocity = 0;
+    private long mPlayStart = 0;
 
     public RNAudioRecorderView(Context context) {
         super(context);
@@ -60,9 +59,7 @@ public class RNAudioRecorderView extends RelativeLayout {
         mTvStatus.setVisibility(View.GONE);
         this.addView(mTvStatus, params);
 
-        pitch = new PitchView(getContext());
         LayoutParams params1 = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
-//        this.addView(pitch, params1);
 
         mWaveForm = new WaveformView(getContext());
         this.addView(mWaveForm, params1);
@@ -75,14 +72,14 @@ public class RNAudioRecorderView extends RelativeLayout {
         if (!hasPermissions()) {
             mTvStatus.setText("Has No Enough Permission, Please enable permission and try again.");
             mTvStatus.setVisibility(View.VISIBLE);
-            pitch.setVisibility(View.GONE);
+            mWaveForm.setVisibility(View.GONE);
             return;
         }
         // init
         config = new RecordConfig();
         // TODO: set config
         // get colors
-        recording = new AudioRecorder(getContext(), pitch.getPitchTime(), config);
+        recording = new AudioRecorder(getContext(), config);
         synchronized (recording.handlers) {
             recording.handlers.add(handler);
         }
@@ -121,11 +118,13 @@ public class RNAudioRecorderView extends RelativeLayout {
             }
         });
 
+        mWaveForm.setConfig(recording.sampleRate, 100);
+        recording.storage.getTempRecording().delete();
+
         loadSamples();
     }
 
     void loadSamples() {
-//        recording.storage.getTempRecording().delete();
         File f = recording.storage.getTempRecording();
         if (!f.exists()) {
             recording.samplesTime = 0;
@@ -136,37 +135,8 @@ public class RNAudioRecorderView extends RelativeLayout {
         RawSamples rs = new RawSamples(f);
         recording.samplesTime = rs.getSamples() / Sound.getChannels(getContext());
 
-        DisplayMetrics metrics = getContext().getResources().getDisplayMetrics();
-
-        int count = pitch.getMaxPitchCount(metrics.widthPixels);
-
-        short[] buf = new short[count * recording.samplesUpdateStereo];
-        long cut = recording.samplesTime * Sound.getChannels(getContext()) - buf.length;
-
-        if (cut < 0)
-            cut = 0;
-
-        rs.open(cut, buf.length);
-        int len = rs.read(buf);
-        rs.close();
-//
-//        pitch.clear(cut / recording.samplesUpdateStereo);
-        int lenUpdate = len / recording.samplesUpdateStereo * recording.samplesUpdateStereo; // cut right overs (leftovers from right)
-//        for (int i = 0; i < lenUpdate; i += recording.samplesUpdateStereo) {
-//            double dB = RawSamples.getDB(buf, i, recording.samplesUpdateStereo);
-//            pitch.add(dB);
-//        }
-
-        mWaveForm.setSoundFile(rs, recording.sampleRate, 100);
+        mWaveForm.setSoundFile(rs);
         mWaveForm.invalidate();
-
-        updateSamples(recording.samplesTime);
-
-        int diff = len - lenUpdate;
-        if (diff > 0) {
-            recording.dbBuffer = ShortBuffer.allocate(recording.samplesUpdateStereo);
-            recording.dbBuffer.put(buf, lenUpdate, diff);
-        }
     }
 
     boolean hasPermissions() {
@@ -196,38 +166,30 @@ public class RNAudioRecorderView extends RelativeLayout {
 
     public void startRecording() {
         try {
-            pitch.setOnTouchListener(null);
+            // edit cut
 
-            pitch.record();
+            RawSamples rs = new RawSamples(recording.storage.getTempRecording());
+            editSample = mWaveForm.getCurrentPosInMs() * recording.sampleRate / 1000;
+            if (rs.getSamples() > editSample && editSample >= 0) {
+                if (editSample == 0) {
+                    rs.close();
+                    recording.storage.getTempRecording().delete();
+                }else {
+                    rs.trunk((editSample + recording.samplesUpdate) * Sound.getChannels(getContext()));
+                    rs.close();
+                }
+                loadSamples();
+            }
+
             recording.startRecording();
-
         } catch (RuntimeException e) {
             e.printStackTrace();
         }
     }
 
-    void stopRecording(String status) {
-
-        stopRecording();
-
-        pitch.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-//                float x = event.getX();
-//                if (x < 0)
-//                    x = 0;
-//                long edit = pitch.edit(x);
-//                else
-//                    editSample = pitch.edit(x) * recording.samplesUpdate;
-                return true;
-            }
-        });
-    }
-
     void stopRecording() {
         if (recording != null) // not possible, but some devices do not call onCreate
             recording.stopRecording();
-        pitch.stop();
     }
 
     public void play() {
@@ -242,24 +204,23 @@ public class RNAudioRecorderView extends RelativeLayout {
 
         if (show) {
 
-            int playUpdate = PitchView.UPDATE_SPEED * recording.sampleRate / 1000;
-
             RawSamples rs = new RawSamples(recording.storage.getTempRecording());
-            editSample = 0;
+            editSample = mWaveForm.getCurrentPosInMs() * recording.sampleRate / 1000;
             int len = (int) (rs.getSamples() - editSample * Sound.getChannels(getContext())); // in samples
+            if (len <= 0) return;
 
             final AudioTrack.OnPlaybackPositionUpdateListener listener = new AudioTrack.OnPlaybackPositionUpdateListener() {
                 @Override
                 public void onMarkerReached(android.media.AudioTrack track) {
                     editPlay(false);
+                    mWaveForm.seekLastPos();
                 }
 
                 @Override
                 public void onPeriodicNotification(android.media.AudioTrack track) {
                     if (play != null) {
-                        long now = System.currentTimeMillis();
-                        long playIndex = editSample + (now - play.playStart) * recording.sampleRate / 1000;
-                        pitch.play(playIndex / (float) recording.samplesUpdate);
+                        long now = System.currentTimeMillis() + editSample * 1000 / recording.sampleRate;
+                        mWaveForm.setPlaySeek(now - mPlayStart);
                     }
                 }
             };
@@ -269,20 +230,24 @@ public class RNAudioRecorderView extends RelativeLayout {
             int r = rs.read(buf.buffer); // r in samples
             if (r != buf.len)
                 throw new RuntimeException("unable to read data");
+            mWaveForm.setAutoSeeking(true);
             int last = buf.len / buf.getChannels() - 1;
             if (play != null)
                 play.release();
+
             play = AudioTrack.create(Sound.SOUND_STREAM, Sound.SOUND_CHANNEL, Sound.SOUND_TYPE, buf);
             play.setNotificationMarkerPosition(last);
-            play.setPositionNotificationPeriod(playUpdate);
+            play.setPositionNotificationPeriod(100);
             play.setPlaybackPositionUpdateListener(listener, handler);
+            mPlayStart = System.currentTimeMillis();
             play.play();
+
         } else {
             if (play != null) {
                 play.release();
                 play = null;
+                mWaveForm.setAutoSeeking(false);
             }
-            pitch.play(-1);
         }
     }
 
@@ -337,9 +302,8 @@ public class RNAudioRecorderView extends RelativeLayout {
 //                }
 //            }
             if (msg.what == AudioRecorder.END) {
-                pitch.drawEnd();
                 if (!recording.interrupt.get()) {
-                    stopRecording("pause");
+                    stopRecording();
                 }
             }
             if (msg.what == AudioRecorder.ERROR)
