@@ -23,12 +23,12 @@ export default class AudioRecorder extends React.Component {
     }
   }
 
-  initialize() {
-    RNAudioRecorder.initialize(findNodeHandle(this.recorderView))
+  initialize(filename, startTimeInMS) {
+    RNAudioRecorder.initialize(findNodeHandle(this.recorderView), filename, startTimeInMS)
   }
 
   startRecording(filename, startTimeInMS) {
-    RNAudioRecorder.startRecording(findNodeHandle(this.recorderView), filename, startTimeInMS)
+    RNAudioRecorder.startRecording(findNodeHandle(this.recorderView))
   }
 
   stopRecording(){

@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.media.MediaCodec;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Message;
@@ -19,12 +20,16 @@ import android.widget.Toast;
 
 import com.github.axet.androidlibrary.sound.AudioTrack;
 import com.reactlibrary.recorder.AudioRecorder;
+import com.reactlibrary.recorder.MediaDecoder;
 import com.reactlibrary.recorder.RawSamples;
 import com.reactlibrary.recorder.RecordConfig;
 import com.reactlibrary.recorder.Sound;
+import com.reactlibrary.recorder.SoundFile;
 import com.reactlibrary.recorder.WaveformView;
+import com.reactlibrary.recorder.base.Storage;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.ShortBuffer;
 
 import static android.content.ContentValues.TAG;
@@ -32,61 +37,30 @@ import static android.content.ContentValues.TAG;
 public class RNAudioRecorderView extends RelativeLayout {
 
     TextView mTvStatus;
+    WaveformView mWaveForm;
+
     RecordConfig config;
     AudioRecorder recording;
+
     private long editSample;
     private AudioTrack play;
-    WaveformView mWaveForm;
     private boolean mTouchDragging = false;
     private float mTouchStart = 0;
     private int mTouchInitialOffset = 0;
     private float mFlingVelocity = 0;
     private long mPlayStart = 0;
 
+    private boolean mInitialized = false;
+
     public RNAudioRecorderView(Context context) {
         super(context);
-        setBackgroundColor(Color.RED);
         addSubViews();
-
-        // init
     }
 
     void addSubViews() {
-        mTvStatus = new TextView(getContext());
-        LayoutParams params = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
-        mTvStatus.setGravity(Gravity.CENTER);
-        mTvStatus.setBackgroundColor(Color.WHITE);
-        mTvStatus.setVisibility(View.GONE);
-        this.addView(mTvStatus, params);
-
         LayoutParams params1 = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
-
         mWaveForm = new WaveformView(getContext());
         this.addView(mWaveForm, params1);
-    }
-
-    // External Reference Methods
-    public void initialize() {
-        // start initialize for record
-        // check the audio record permission
-        if (!hasPermissions()) {
-            mTvStatus.setText("Has No Enough Permission, Please enable permission and try again.");
-            mTvStatus.setVisibility(View.VISIBLE);
-            mWaveForm.setVisibility(View.GONE);
-            return;
-        }
-        // init
-        config = new RecordConfig();
-        // TODO: set config
-        // get colors
-        recording = new AudioRecorder(getContext(), config);
-        synchronized (recording.handlers) {
-            recording.handlers.add(handler);
-        }
-
-        recording.updateBufferSize(false);
-
-        // init waveform
         DisplayMetrics metrics = getContext().getResources().getDisplayMetrics();
         mWaveForm.setDensity(metrics.density);
         mWaveForm.setListener(new WaveformView.WaveformListener() {
@@ -118,10 +92,85 @@ public class RNAudioRecorderView extends RelativeLayout {
             }
         });
 
+        mTvStatus = new TextView(getContext());
+        LayoutParams params = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
+        mTvStatus.setGravity(Gravity.CENTER);
+        mTvStatus.setBackgroundColor(Color.WHITE);
+        mTvStatus.setVisibility(View.GONE);
+        this.addView(mTvStatus, params);
+    }
+
+    public void initialize(String filename, int offsetInMs) {
+        // start initialize for record
+        // check the audio record permission
+        if (!hasPermissions()) {
+            mTvStatus.setText("Has No Enough Permission, Please enable permission and try again.");
+            mTvStatus.setVisibility(View.VISIBLE);
+            mWaveForm.setVisibility(View.GONE);
+            return;
+        }
+        // init
+        config = new RecordConfig();
+
+        if (recording != null)
+            destroy();
+
+        mWaveForm.clearData();
+
+        filename ="/sdcard/Android/media/com.google.android.talk/Ringtones/hangouts_incoming_call.ogg";
+
+        try {
+            SoundFile sf = SoundFile.create(filename, new SoundFile.ProgressListener() {
+                @Override
+                public boolean reportProgress(double fractionComplete) {
+                    return true;
+                }
+            });
+            config.sampleRate = sf.getSampleRate();
+            config.channels = sf.getChannels();
+            recording = new AudioRecorder(getContext(), config);
+            recording.storage.getTempRecording().delete();
+            RawSamples rs = new RawSamples(recording.storage.getTempRecording());
+            sf.writeRawToTemp(rs);
+        } catch (Exception e) {
+            e.printStackTrace();
+            config.sampleRate = Sound.getSampleRate(getContext());
+            config.channels = Sound.getChannels(getContext());
+            recording = new AudioRecorder(getContext(), config);
+            recording.storage.getTempRecording().delete();
+        }
+
+
+//        MediaDecoder decoder = new MediaDecoder(filename);
+//        if (decoder.isInitialized) {
+//            config.sampleRate = decoder.getSampleRate();
+//            recording = new AudioRecorder(getContext(), config);
+//            recording.storage.getTempRecording().delete();
+//
+//            short[] data;
+//            RawSamples rs = new RawSamples(recording.storage.getTempRecording());
+//            decoder.writeRawToTemp(rs);
+//
+//            rs.close();
+//        }else{
+//            config.sampleRate = Sound.getSampleRate(getContext());
+//            recording = new AudioRecorder(getContext(), config);
+//            recording.storage.getTempRecording().delete();
+//        }
+
+        synchronized (recording.handlers) {
+            recording.handlers.add(handler);
+        }
+
+        recording.updateBufferSize(false);
+
         mWaveForm.setConfig(recording.sampleRate, 100);
-        recording.storage.getTempRecording().delete();
 
         loadSamples();
+    }
+
+    public void destroy() {
+        recording = null;
     }
 
     void loadSamples() {
@@ -139,35 +188,15 @@ public class RNAudioRecorderView extends RelativeLayout {
         mWaveForm.invalidate();
     }
 
-    boolean hasPermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            return (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED &&
-                    ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED);
-        } else {
-            return true;
-        }
-    }
-
-    public void setStatus(String status) {
-        mTvStatus.setText(status);
-    }
-
-    public void Error(Throwable e) {
-        Log.e(TAG, "error", e);
-        Toast.makeText(getContext(), e.getMessage(), Toast.LENGTH_LONG).show();
-    }
-
-    void updateSamples(long samplesTime) {
-        long ms = samplesTime / recording.sampleRate * 1000;
-        String duration = formatDuration(ms);
-
-        // TODO: duration string
-    }
-
     public void startRecording() {
+
+        if (recording.thread != null) {
+            stopRecording();
+            return;
+        }
+
         try {
             // edit cut
-
             RawSamples rs = new RawSamples(recording.storage.getTempRecording());
             editSample = mWaveForm.getCurrentPosInMs() * recording.sampleRate / 1000;
             if (rs.getSamples() > editSample && editSample >= 0) {
@@ -272,6 +301,31 @@ public class RNAudioRecorderView extends RelativeLayout {
 
     public String formatTime(int tt) {
         return String.format("%02d", tt);
+    }
+
+    boolean hasPermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            return (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED &&
+                    ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED);
+        } else {
+            return true;
+        }
+    }
+
+    public void setStatus(String status) {
+        mTvStatus.setText(status);
+    }
+
+    public void Error(Throwable e) {
+        Log.e(TAG, "error", e);
+        Toast.makeText(getContext(), e.getMessage(), Toast.LENGTH_LONG).show();
+    }
+
+    void updateSamples(long samplesTime) {
+        long ms = samplesTime / recording.sampleRate * 1000;
+        String duration = formatDuration(ms);
+
+        // TODO: duration string
     }
 
     Handler handler = new Handler() {

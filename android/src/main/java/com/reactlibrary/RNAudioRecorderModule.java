@@ -26,7 +26,7 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void initialize(final int viewId) {
+    public void initialize(final int viewId, final String filename, final int offset) {
         UIManagerModule uiManager = getReactApplicationContext().getNativeModule(UIManagerModule.class);
         uiManager.addUIBlock(new UIBlock() {
             @Override
@@ -34,7 +34,8 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
                 View view = nativeViewHierarchyManager.resolveView(viewId);
                 if (view instanceof RNAudioRecorderView) {
                     RNAudioRecorderView audioRecorderView = (RNAudioRecorderView)view;
-                    audioRecorderView.initialize();
+                    // TODO: add file and offset
+                    audioRecorderView.initialize(filename, offset);
                 }
             }
         });
@@ -74,7 +75,7 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void startRecording(final int viewId, final String filename, final int offset) {
+    public void startRecording(final int viewId) {
         UIManagerModule uiManager = getReactApplicationContext().getNativeModule(UIManagerModule.class);
         uiManager.addUIBlock(new UIBlock() {
             @Override
