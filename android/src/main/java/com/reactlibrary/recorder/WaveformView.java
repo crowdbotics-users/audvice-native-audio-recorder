@@ -1,15 +1,14 @@
 package com.reactlibrary.recorder;
 
 import android.content.Context;
-import android.content.res.Resources;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.util.AttributeSet;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
 
-import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -27,15 +26,15 @@ import java.util.List;
  */
 public class WaveformView extends View {
 
-    private final static float HEIGHT_FACTOR = 0.8f;
-
     public interface WaveformListener {
         public void waveformTouchStart(float x);
         public void waveformTouchMove(float x);
         public void waveformTouchEnd();
         public void waveformFling(float x);
         public void waveformDraw();
-    };
+    }
+
+    private float HEIGHT_FACTOR = 0.8f;
 
     // Colors
     private Paint mGridPaint;
@@ -43,21 +42,19 @@ public class WaveformView extends View {
     private Paint mLinePaint;
     private Paint mTimecodePaint;
 
-    private RawSamples mSoundFile;
+    private SoundFile mSoundFile;
     private int mLength;
-    private List<Double> mValues;
-    public int mSampleRate;
-    public int mSamplesPerPixel;
+    private int mSampleRate;
+    private int mSamplesPerPixel;
     private int mOffset;
+    private int mPlaybackPos;
     private float mDensity;
+    private float mInitialScaleSpan;
     private WaveformListener mListener;
     private GestureDetector mGestureDetector;
     private boolean mInitialized;
-    private short mMaxValue = 4096;
-    private short mMinValue = 0;
-    private long mChunkIndex = 0;
+    private short mMaxValue = 12000;
     private boolean mAutoSeeking = false;
-    private double mLastGain = -1;
 
     public WaveformView(Context context) {
         super(context);
@@ -65,7 +62,6 @@ public class WaveformView extends View {
         // We don't want keys, the markers get these
         setFocusable(false);
 
-        Resources res = getResources();
         mGridPaint = new Paint();
         mGridPaint.setAntiAlias(false);
         mGridPaint.setColor(Color.TRANSPARENT);// TODO
@@ -93,18 +89,16 @@ public class WaveformView extends View {
         );
 
         mSoundFile = null;
-        mLength = 0;
-        mValues = new LinkedList<>();
         mOffset = 0;
+        mPlaybackPos = -1;
         mDensity = 1.0f;
         mInitialized = false;
+        mSamplesPerPixel = 100;
     }
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-
         if (mAutoSeeking) return false;
-
         if (mGestureDetector.onTouchEvent(event)) {
             return true;
         }
@@ -127,14 +121,11 @@ public class WaveformView extends View {
         return mSoundFile != null;
     }
 
-    public void setSoundFile(RawSamples soundFile) {
+    public void setSoundFile(SoundFile soundFile) {
         mSoundFile = soundFile;
-        computeDoublesForAllZoomLevels();
-    }
-
-    public void setConfig(int sampleRate, int pixelsPerSec) {
-        mSampleRate = sampleRate;
-        mSamplesPerPixel = sampleRate/ pixelsPerSec;
+        mSampleRate = mSoundFile.getSampleRate();
+        mSamplesPerPixel = mSoundFile.getSamplesPerPixel();
+        mInitialized = true;
     }
 
     public boolean isInitialized() {
@@ -142,7 +133,7 @@ public class WaveformView extends View {
     }
 
     public int maxPos() {
-        return mLength;
+        return mSoundFile.getNumPixels();
     }
 
     public int secondsToPixels(double seconds) {
@@ -168,10 +159,6 @@ public class WaveformView extends View {
         setOffset((int)offset);
     }
 
-    public void seekLastPos() {
-        setOffset(mValues.size());
-    }
-
     public long getCurrentPosInMs() {
         long msecs = mOffset * 1000 * mSamplesPerPixel / mSampleRate;
         return msecs;
@@ -179,16 +166,12 @@ public class WaveformView extends View {
 
     public void setOffset(int offset) {
         mOffset = Math.max(0, offset);
-        mOffset = Math.min(mOffset, mValues.size());
+        mOffset = Math.min(mOffset, mSoundFile.getNumPixels());
         invalidate();
     }
 
     public int getOffset() {
         return mOffset;
-    }
-
-    public void setListener(WaveformListener listener) {
-        mListener = listener;
     }
 
     public void setAutoSeeking(boolean audoSeeking) {
@@ -199,9 +182,17 @@ public class WaveformView extends View {
         return mAutoSeeking;
     }
 
+    public void updateRecording() {
+        setOffset(mSoundFile.getNumPixels());
+    }
+
     public void setDensity(float density) {
         mDensity = density;
         mTimecodePaint.setTextSize((int)(12 * density));
+    }
+
+    public void setListener(WaveformListener listener) {
+        mListener = listener;
     }
 
     protected void drawWaveformLine(Canvas canvas,
@@ -220,7 +211,7 @@ public class WaveformView extends View {
         int mHalfHeight = (getMeasuredHeight() / 2) - 1;
         int offset = mOffset - measuredWidth / 2;
         int start = offset;
-        int width = mValues.size() - start;
+        int width = mSoundFile != null ? mSoundFile.pixelGains.size() - start : -start;
         int ctr = measuredHeight / 2;
 
         if (width > measuredWidth)
@@ -245,16 +236,19 @@ public class WaveformView extends View {
         }
 
         // Draw waveform
-        for (i = 0; i < width; i++) {
-            int height = 0;
-            if (start + i >= 0) {
-                height = (int) (mValues.get(start + i) * mHalfHeight * HEIGHT_FACTOR / mMaxValue);
+
+        if (mSoundFile != null) {
+            for (i = 0; i < width; i++) {
+                int height = 0;
+                if (start + i >= 0 && start + i < mSoundFile.pixelGains.size()) {
+                    height = (int) (mSoundFile.pixelGains.get(start + i) * mHalfHeight * HEIGHT_FACTOR / mMaxValue);
+                }
+                drawWaveformLine(
+                        canvas, i,
+                        ctr - height,
+                        ctr + 1 + height,
+                        mLinePaint);
             }
-            drawWaveformLine(
-                    canvas, i,
-                    ctr - height ,
-                    ctr + 1 + height,
-                    mLinePaint);
         }
 
         // Draw current line
@@ -308,56 +302,5 @@ public class WaveformView extends View {
         if (mListener != null) {
             mListener.waveformDraw();
         }
-    }
-
-    /**
-     * Called once when a new sound file is added
-     */
-    private void computeDoublesForAllZoomLevels() {
-        int numFrames = (int) mSoundFile.getSamples() / mSamplesPerPixel;
-
-        mValues.clear();
-        int value;
-        short[] buffer = new short[mSamplesPerPixel];
-        mSoundFile.open(0, mSamplesPerPixel);
-        int lastLen = 0;
-        for (int i = 0; i < numFrames; i++) {
-            mLastGain = -1;
-            lastLen = mSoundFile.read(buffer);
-            for (int j = 0; j < lastLen; j++) {
-                value = buffer[j];
-                mLastGain = Math.max(mLastGain, value);
-            }
-            if (lastLen < mSamplesPerPixel) continue;
-            mValues.add(mLastGain);
-            mLastGain = 0;
-        }
-
-        mSoundFile.close();
-
-        if (lastLen < mSamplesPerPixel) {
-            mChunkIndex = lastLen;
-        }
-
-        mLength = numFrames;
-        mOffset = mLength;
-
-        mInitialized = true;
-    }
-
-    public void addNewBuffer(short[] buffer) {
-        for (int i = 0; i< buffer.length; i++) {
-            mLastGain = Math.max(mLastGain, (double)buffer[i]);
-            mChunkIndex++;
-            if (mChunkIndex >= mSamplesPerPixel) {
-                mValues.add(mLastGain);
-//                mMaxValue = (short) Math.max(mMaxValue, (double) gain);
-                mLastGain = 0;
-                mChunkIndex = 0;
-            }
-        }
-        mLength = mValues.size();
-        mOffset = mLength;
-        invalidate();
     }
 }
