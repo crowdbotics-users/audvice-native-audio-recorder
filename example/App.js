@@ -20,7 +20,8 @@ export default class App extends Component<Props> {
     super(props)
     this.state = {
       initialized: false,
-      hasPermissions: false
+      hasPermissions: false,
+      result: 'No Result'
     }
   }
 
@@ -73,6 +74,16 @@ export default class App extends Component<Props> {
       return
     }
     this.audioRecoder.stopRecording()
+      .then(res => {
+        this.setState({
+          result: res
+        })
+      })
+      .catch((err) => {
+        this.setState({
+          result: `error: ${err}`
+        })
+      })
   }
 
   onPressStart() {
@@ -95,9 +106,35 @@ export default class App extends Component<Props> {
       return
     }
 
-    this.audioRecoder.initialize('/sdcard/Android/media/com.google.android.talk/Ringtones/hangouts_incoming_call.ogg', -1)
+    this.audioRecoder.initialize('/sdcard/Android/media/com.google.android.talk/Ringtones/hangouts_incoming_call.ogg', 2000)
     this.setState({
       initialized: true
+    })
+  }
+
+  onPressRenderByFile() {
+    if (!this.state.hasPermissions) {
+      Alert.alert(
+        'Permission Errors',
+        'Please make sure permissions enabled, and try again',
+        [
+          {text: 'Try Again', onPress:this.permissionCheck.bind(this)}
+        ]
+      )
+      return
+    }
+
+    this.audioRecoder.renderByFile('/sdcard/Android/media/com.google.android.talk/Ringtones/hangouts_incoming_call.ogg')
+    .then(res => {
+      this.setState({
+        result: res,
+        initialized: true
+      })
+    })
+    .catch((err) => {
+      this.setState({
+        result: `error: ${err}`
+      })
     })
   }
 
@@ -118,6 +155,31 @@ export default class App extends Component<Props> {
     })
   }
 
+  onPressCut() {
+    if (!this.state.hasPermissions) {
+      Alert.alert(
+        'Permission Errors',
+        'Please make sure permissions enabled, and try again',
+        [
+          {text: 'Try Again', onPress:this.permissionCheck.bind(this)}
+        ]
+      )
+      return
+    }
+    this.audioRecoder.cut('/sdcard/Android/media/com.google.android.talk/Ringtones/hangouts_incoming_call.ogg', 50, 500)
+    .then(res => {
+      this.setState({
+        result: res,
+        initialized: true
+      })
+    })
+    .catch((err) => {
+      this.setState({
+        result: `error: ${err}`
+      })
+    })
+  }
+
   render() {
     return (
       <View style={styles.container}>
@@ -134,6 +196,14 @@ export default class App extends Component<Props> {
           <TouchableOpacity style={styles.button} onPress={this.onPressinitWithFile.bind(this)}>
             <Text style={{color: 'white'}}>initWithFile</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={this.onPressRenderByFile.bind(this)}>
+            <Text style={{color: 'white'}}>renderByFile</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={this.onPressCut.bind(this)}>
+            <Text style={{color: 'white'}}>Cut</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.buttonContainer}>
           <TouchableOpacity style={styles.button} onPress={this.onPressStart.bind(this)}>
             <Text style={{color: 'white'}}>start/pause</Text>
           </TouchableOpacity>
@@ -144,6 +214,7 @@ export default class App extends Component<Props> {
             <Text style={{color: 'white'}}>play</Text>
           </TouchableOpacity>
         </View>
+        <Text>{this.state.result}</Text>
       </View>
     );
   }
@@ -159,11 +230,12 @@ const styles = StyleSheet.create({
   buttonContainer: {    
     flexDirection: 'row',
     width: '100%',
-    justifyContent: 'space-between'
+    justifyContent: 'space-around',
+    marginVertical: 10
   },
   button: {
     height: 60,
-    width: '18%',
+    width: '25%',
     backgroundColor: 'blue',
     alignItems: 'center',
     justifyContent: 'center'

@@ -10,6 +10,10 @@ import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.uimanager.NativeViewHierarchyManager;
 import com.facebook.react.uimanager.UIBlock;
 import com.facebook.react.uimanager.UIManagerModule;
+import com.reactlibrary.recorder.SoundFile;
+
+import java.io.FileNotFoundException;
+import java.io.IOException;
 
 public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
 
@@ -34,7 +38,6 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
                 View view = nativeViewHierarchyManager.resolveView(viewId);
                 if (view instanceof RNAudioRecorderView) {
                     RNAudioRecorderView audioRecorderView = (RNAudioRecorderView)view;
-                    // TODO: add file and offset
                     audioRecorderView.initialize(filename, offset);
                 }
             }
@@ -42,7 +45,7 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void destroy(final int viewId) {
+    public void renderByFile(final int viewId, final String filename, final Promise promise) {
         UIManagerModule uiManager = getReactApplicationContext().getNativeModule(UIManagerModule.class);
         uiManager.addUIBlock(new UIBlock() {
             @Override
@@ -50,7 +53,39 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
                 View view = nativeViewHierarchyManager.resolveView(viewId);
                 if (view instanceof RNAudioRecorderView) {
                     RNAudioRecorderView audioRecorderView = (RNAudioRecorderView)view;
-                    audioRecorderView.setStatus("Native destroy");
+                    try {
+                        audioRecorderView.renderByFile(filename);
+                        promise.resolve("success");
+                    } catch (FileNotFoundException e) {
+                        e.printStackTrace();
+                        promise.reject("FileNotFound", e.getCause());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        promise.reject("InvalidFile", e.getCause());
+                    } catch (SoundFile.InvalidInputException e) {
+                        e.printStackTrace();
+                        promise.reject("InvalidFile", e.getCause());
+                    }
+                } else {
+                    promise.reject("ViewNotFound", "Cannot Find View");
+                }
+            }
+        });
+    }
+
+    @ReactMethod
+    public void destroy(final int viewId, final Promise promise) {
+        UIManagerModule uiManager = getReactApplicationContext().getNativeModule(UIManagerModule.class);
+        uiManager.addUIBlock(new UIBlock() {
+            @Override
+            public void execute(NativeViewHierarchyManager nativeViewHierarchyManager) {
+                View view = nativeViewHierarchyManager.resolveView(viewId);
+                if (view instanceof RNAudioRecorderView) {
+                    RNAudioRecorderView audioRecorderView = (RNAudioRecorderView)view;
+                    audioRecorderView.destroy();
+                    promise.resolve("success");
+                }else {
+                    promise.reject("ViewNotFound", "Cannot Find View");
                 }
             }
         });
@@ -65,8 +100,12 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
                 View view = nativeViewHierarchyManager.resolveView(viewId);
                 if (view instanceof RNAudioRecorderView) {
                     RNAudioRecorderView audioRecorderView = (RNAudioRecorderView)view;
-                    audioRecorderView.stopRecording();
-                    promise.resolve("filename");
+                    String output = audioRecorderView.stopRecording();
+                    if (output == null) {
+                        promise.reject("UnknownError", "Cannot Save the file");
+                    }else {
+                        promise.resolve("filename");
+                    }
                 } else {
                     promise.reject("error", "Not found view");
                 }
@@ -83,7 +122,6 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
                 View view = nativeViewHierarchyManager.resolveView(viewId);
                 if (view instanceof RNAudioRecorderView) {
                     RNAudioRecorderView audioRecorderView = (RNAudioRecorderView)view;
-                    // TODO: add file and offset
                     audioRecorderView.startRecording();
                 }
             }
@@ -106,30 +144,29 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void renderByFile(final int viewId, final String filename) {
+    public void cut(final int viewId, final String filename, final int fromTime, final int toTime, final Promise promise) {
         UIManagerModule uiManager = getReactApplicationContext().getNativeModule(UIManagerModule.class);
         uiManager.addUIBlock(new UIBlock() {
             @Override
             public void execute(NativeViewHierarchyManager nativeViewHierarchyManager) {
                 View view = nativeViewHierarchyManager.resolveView(viewId);
                 if (view instanceof RNAudioRecorderView) {
-                    RNAudioRecorderView audioRecorderView = (RNAudioRecorderView)view;
-                    audioRecorderView.setStatus("Native Render File: " + filename);
-                }
-            }
-        });
-    }
-
-    @ReactMethod
-    public void cut(final int viewId, final String filename, final int fromTime, final int toTime) {
-        UIManagerModule uiManager = getReactApplicationContext().getNativeModule(UIManagerModule.class);
-        uiManager.addUIBlock(new UIBlock() {
-            @Override
-            public void execute(NativeViewHierarchyManager nativeViewHierarchyManager) {
-                View view = nativeViewHierarchyManager.resolveView(viewId);
-                if (view instanceof RNAudioRecorderView) {
-                    RNAudioRecorderView audioRecorderView = (RNAudioRecorderView)view;
-                    audioRecorderView.setStatus("Native cut: " + filename + " - " + fromTime + "-" + toTime);
+                    try {
+                        RNAudioRecorderView audioRecorderView = (RNAudioRecorderView)view;
+                        audioRecorderView.cut(filename, fromTime, toTime);
+                        promise.resolve("success");
+                    } catch (FileNotFoundException e) {
+                        e.printStackTrace();
+                        promise.reject("FileNotFound", e.getCause());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        promise.reject("InvalidFile", e.getCause());
+                    } catch (SoundFile.InvalidInputException e) {
+                        e.printStackTrace();
+                        promise.reject("InvalidFile", e.getCause());
+                    }
+                } else {
+                    promise.reject("ViewNotFound", "Cannot Find View");
                 }
             }
         });

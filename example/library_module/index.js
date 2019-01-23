@@ -27,32 +27,28 @@ export default class AudioRecorder extends React.Component {
     RNAudioRecorder.initialize(findNodeHandle(this.recorderView), filename, startTimeInMS)
   }
 
-  startRecording(filename, startTimeInMS) {
+  renderByFile(filename) {
+    return RNAudioRecorder.renderByFile(findNodeHandle(this.recorderView), filename)
+  }
+
+  startRecording() {
     RNAudioRecorder.startRecording(findNodeHandle(this.recorderView))
   }
 
   stopRecording(){
-    RNAudioRecorder.stopRecording(findNodeHandle(this.recorderView))
-      .then(res => {
-        console.warn(res);
-      })
-      .catch((err) => console.warn(err))
+    return RNAudioRecorder.stopRecording(findNodeHandle(this.recorderView))      
   }
 
   play() {
     RNAudioRecorder.play(findNodeHandle(this.recorderView))
   }
 
-  renderByFile(filename){
-    RNAudioRecorder.renderByFile(findNodeHandle(this.recorderView), filename)
-  }
-
   cut(filename, fromTime, toTime){
-    RNAudioRecorder.cut(findNodeHandle(this.recorderView), filename, fromTime, toTime)
+    return RNAudioRecorder.cut(findNodeHandle(this.recorderView), filename, fromTime, toTime)
   }
 
   destroy() {
-    RNAudioRecorder.destroy(findNodeHandle(this.recorderView))
+    return RNAudioRecorder.destroy(findNodeHandle(this.recorderView))
   }
 
   render() {

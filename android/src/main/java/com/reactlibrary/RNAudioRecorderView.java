@@ -19,6 +19,9 @@ import com.reactlibrary.recorder.SamplePlayer;
 import com.reactlibrary.recorder.SoundFile;
 import com.reactlibrary.recorder.WaveformView;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
+
 public class RNAudioRecorderView extends RelativeLayout {
 
     TextView mTvStatus;
@@ -27,6 +30,7 @@ public class RNAudioRecorderView extends RelativeLayout {
     SoundFile mSoundFile;
     SamplePlayer mPlayer = null;
     Handler mPlayerHandler = new Handler();
+    String mOutputFile = null;
 
     private boolean mTouchDragging = false;
     private float mTouchStart = 0;
@@ -74,6 +78,7 @@ public class RNAudioRecorderView extends RelativeLayout {
         }
 
         // create sound file
+        mOutputFile = filename;
         try {
             mSoundFile = SoundFile.create(filename, 100, soundProgressListener);
 
@@ -90,10 +95,75 @@ public class RNAudioRecorderView extends RelativeLayout {
         mWaveForm.invalidate();
     }
 
+    public void renderByFile(String filename) throws IOException,
+            FileNotFoundException,
+            SoundFile.InvalidInputException
+    {
+        // start initialize for record
+        // check the audio record permission
+        if (!hasPermissions()) {
+            mTvStatus.setText("Has No Enough Permission, Please enable permission and try again.");
+            mTvStatus.setVisibility(View.VISIBLE);
+            mWaveForm.setVisibility(View.GONE);
+            return;
+        }
+        mOutputFile = filename;
+        // init
+        if (mSoundFile != null) {
+            mSoundFile = null;
+        }
+
+        // create sound file
+        mSoundFile = SoundFile.create(filename, 100, soundProgressListener);
+
+        if (mSoundFile == null) {
+            throw new FileNotFoundException();
+        }
+
+        mWaveForm.setSoundFile(mSoundFile);
+        mWaveForm.invalidate();
+    }
+
+    public String cut(String filename, final int fromTime, final int toTime) throws IOException,
+            FileNotFoundException,
+            SoundFile.InvalidInputException
+    {
+        // start initialize for record
+        // check the audio record permission
+        if (!hasPermissions()) {
+            mTvStatus.setText("Has No Enough Permission, Please enable permission and try again.");
+            mTvStatus.setVisibility(View.VISIBLE);
+            mWaveForm.setVisibility(View.GONE);
+            return null;
+        }
+
+        mOutputFile = filename;
+
+        // init
+        if (mSoundFile != null) {
+            mSoundFile = null;
+        }
+
+        // create sound file
+        // TODO: cut
+        mSoundFile = SoundFile.create(filename, 100, soundProgressListener);
+
+        if (mSoundFile == null) {
+            throw new FileNotFoundException();
+        }
+
+        mWaveForm.setSoundFile(mSoundFile);
+        mWaveForm.invalidate();
+
+        // TODO: mSoundFile Write new File and return path
+        return mOutputFile;
+    }
+
     public void destroy() {
         releasePlayer();
         closeThread(mRecordAudioThread);
         mRecordAudioThread = null;
+        mSoundFile = null;
     }
 
     private void closeThread(Thread thread) {
@@ -107,22 +177,37 @@ public class RNAudioRecorderView extends RelativeLayout {
 
     public void startRecording() {
         // if mplayer, clear it.
+        if (mSoundFile == null) return;
         releasePlayer();
         mNeedProcessStop = false;
+
+        if (mRecordAudioThread != null) {
+            mNeedProcessStop = true;
+            return;
+        }
+
+        mSoundFile.truncateFile(mWaveForm.pixelsToMillisecs(mWaveForm.getOffset()));
 
         mRecordAudioThread = new Thread(){
             @Override
             public void run() {
                 mSoundFile.RecordAudio(0);
-                mNeedProcessStop = true;
+                mNeedProcessStop = false;
+                mRecordAudioThread = null;
             }
         };
         mRecordAudioThread.start();
     }
 
-    void stopRecording() {
+    String stopRecording() {
+        if (mSoundFile == null) return null;
         releasePlayer();
         mNeedProcessStop = true;
+
+        mWaveForm.invalidate();
+
+        // TODO: handle output
+        return mOutputFile;
     }
 
     private void releasePlayer() {
@@ -137,6 +222,7 @@ public class RNAudioRecorderView extends RelativeLayout {
     }
 
     public void play() {
+        if (mSoundFile == null) return;
         if (mPlayer == null) {
             mPlayer = new SamplePlayer(mSoundFile);
             mPlayer.setOnCompletionListener(new SamplePlayer.OnCompletionListener() {
@@ -165,7 +251,7 @@ public class RNAudioRecorderView extends RelativeLayout {
                 int pixels = mWaveForm.millisecsToPixels(mPlayer.getCurrentPosition());
                 if (pixels < mWaveForm.maxPos() && pixels > mWaveForm.getOffset()) {
                     mWaveForm.setOffset(pixels);
-                    mPlayerHandler.postDelayed(playRunnable, 50);
+                    mPlayerHandler.postDelayed(playRunnable, 25);
                 } else {
                     completedPlay();
                 }
@@ -175,7 +261,6 @@ public class RNAudioRecorderView extends RelativeLayout {
 
     private synchronized void completedPlay() {
         releasePlayer();
-        mWaveForm.setOffset(0);
     }
 
     public String formatDuration(long diff) {
