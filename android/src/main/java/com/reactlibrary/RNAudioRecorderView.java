@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Build;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.support.v4.app.ActivityCompat;
@@ -19,10 +20,16 @@ import com.reactlibrary.recorder.SamplePlayer;
 import com.reactlibrary.recorder.SoundFile;
 import com.reactlibrary.recorder.WaveformView;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 public class RNAudioRecorderView extends RelativeLayout {
+
+    public static final SimpleDateFormat ISO8601 = new SimpleDateFormat("yyyyMMdd'T'HHmmss", Locale.US);
 
     TextView mTvStatus;
     WaveformView mWaveForm;
@@ -73,21 +80,25 @@ public class RNAudioRecorderView extends RelativeLayout {
             return;
         }
         // init
+
+        mNeedProcessStop = false;
         if (mSoundFile != null) {
             mSoundFile = null;
         }
 
         // create sound file
         mOutputFile = filename;
-        try {
-            mSoundFile = SoundFile.create(filename, 100, soundProgressListener);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            mSoundFile = null;
+        if (offsetInMs != 0) {
+            try {
+                mSoundFile = SoundFile.create(filename, 100, offsetInMs, -1, soundProgressListener);
+            } catch (Exception e) {
+                e.printStackTrace();
+                mSoundFile = null;
+            }
         }
 
         if (mSoundFile == null) {
+            mOutputFile = null;
             mSoundFile = SoundFile.createRecord(100, soundProgressListener);
         }
 
@@ -107,6 +118,8 @@ public class RNAudioRecorderView extends RelativeLayout {
             mWaveForm.setVisibility(View.GONE);
             return;
         }
+
+        mNeedProcessStop = false;
         mOutputFile = filename;
         // init
         if (mSoundFile != null) {
@@ -114,7 +127,7 @@ public class RNAudioRecorderView extends RelativeLayout {
         }
 
         // create sound file
-        mSoundFile = SoundFile.create(filename, 100, soundProgressListener);
+        mSoundFile = SoundFile.create(filename, 100, -1, -1, soundProgressListener);
 
         if (mSoundFile == null) {
             throw new FileNotFoundException();
@@ -126,7 +139,8 @@ public class RNAudioRecorderView extends RelativeLayout {
 
     public String cut(String filename, final int fromTime, final int toTime) throws IOException,
             FileNotFoundException,
-            SoundFile.InvalidInputException
+            SoundFile.InvalidInputException,
+            InvalidParamException
     {
         // start initialize for record
         // check the audio record permission
@@ -137,6 +151,8 @@ public class RNAudioRecorderView extends RelativeLayout {
             return null;
         }
 
+        mNeedProcessStop = false;
+
         mOutputFile = filename;
 
         // init
@@ -145,18 +161,31 @@ public class RNAudioRecorderView extends RelativeLayout {
         }
 
         // create sound file
-        // TODO: cut
-        mSoundFile = SoundFile.create(filename, 100, soundProgressListener);
+        if (fromTime == -1 &&
+                toTime == -1) {
+            throw new InvalidParamException("Invalid Parameter is used");
+        }
+
+        if (fromTime != -1 &&
+                toTime != -1 &&
+                fromTime >= toTime) {
+            throw new InvalidParamException("Invalid Parameter is used");
+        }
+
+        mSoundFile = SoundFile.create(filename, 100, fromTime, toTime, soundProgressListener);
 
         if (mSoundFile == null) {
             throw new FileNotFoundException();
         }
 
+        if (mSoundFile.getNumSamples() == 0) {
+            throw new InvalidParamException("Invalid Parameter is used");
+        }
+
         mWaveForm.setSoundFile(mSoundFile);
         mWaveForm.invalidate();
 
-        // TODO: mSoundFile Write new File and return path
-        return mOutputFile;
+        return stopRecording();
     }
 
     public void destroy() {
@@ -199,15 +228,40 @@ public class RNAudioRecorderView extends RelativeLayout {
         mRecordAudioThread.start();
     }
 
-    String stopRecording() {
+    String stopRecording() throws IOException {
         if (mSoundFile == null) return null;
         releasePlayer();
         mNeedProcessStop = true;
 
         mWaveForm.invalidate();
 
-        // TODO: handle output
-        return mOutputFile;
+        String extension = mSoundFile.getFiletype();
+
+        if (extension.equals("mp3") || extension.equals("m4a")) {
+            File outFile = new File(mOutputFile);
+            if (outFile.exists()) {
+                outFile.delete();
+            }
+            mSoundFile.WriteFile(outFile);
+            return mOutputFile;
+        } else if (extension.equals("wav")) {
+            File outFile = new File(mOutputFile);
+            if (outFile.exists()) {
+                outFile.delete();
+            }
+            mSoundFile.WriteWAVFile(outFile);
+            return mOutputFile;
+        } else {
+            extension = "wav";
+            mOutputFile = makeRandomFilePath(extension);
+            mSoundFile.WriteWAVFile(new File(mOutputFile));
+            return mOutputFile;
+        }
+    }
+
+    public long getDuration() {
+        if (mSoundFile == null) return 0;
+        return (long)mSoundFile.getNumSamples() * 1000 / mSoundFile.getSampleRate();
     }
 
     private void releasePlayer() {
@@ -239,7 +293,7 @@ public class RNAudioRecorderView extends RelativeLayout {
             mPlayerHandler.removeCallbacks(playRunnable);
         }else{
             mPlayer.seekTo(mWaveForm.pixelsToMillisecs(mWaveForm.getOffset()));
-            mPlayerHandler.postDelayed(playRunnable, 50);
+            mPlayerHandler.postDelayed(playRunnable, 100);
             mPlayer.start();
         }
     }
@@ -249,7 +303,7 @@ public class RNAudioRecorderView extends RelativeLayout {
         public void run() {
             if (mPlayer != null && mPlayer.isPlaying()) {
                 int pixels = mWaveForm.millisecsToPixels(mPlayer.getCurrentPosition());
-                if (pixels < mWaveForm.maxPos() && pixels > mWaveForm.getOffset()) {
+                if (pixels < mWaveForm.maxPos() - 5) {
                     mWaveForm.setOffset(pixels);
                     mPlayerHandler.postDelayed(playRunnable, 25);
                 } else {
@@ -260,6 +314,7 @@ public class RNAudioRecorderView extends RelativeLayout {
     };
 
     private synchronized void completedPlay() {
+        mWaveForm.setOffset(mWaveForm.maxPos());
         releasePlayer();
     }
 
@@ -340,6 +395,27 @@ public class RNAudioRecorderView extends RelativeLayout {
         }
     };
 
+    public static String makeRandomFilePath(String extension) {
+        String externalRootDir = Environment.getExternalStorageDirectory().getPath();
+        if (!externalRootDir.endsWith("/")) {
+            externalRootDir += "/";
+        }
+        String parentdir = externalRootDir + "audiorecorder/";
+
+        // Create the parent directory
+        File parentDirFile = new File(parentdir);
+        parentDirFile.mkdirs();
+
+        // If we can't write to that special path, try just writing
+        // directly to the sdcard
+        if (!parentDirFile.isDirectory()) {
+            parentdir = externalRootDir;
+        }
+
+        String filename = ISO8601.format(new Date()) + "." + extension;
+        return parentdir + filename;
+    }
+
     private  MessageHandler messageHandler = new MessageHandler();
 
     @SuppressLint("HandlerLeak")
@@ -353,6 +429,13 @@ public class RNAudioRecorderView extends RelativeLayout {
                     updateWavrForm();
                 }
             }
+        }
+    }
+
+    public static class InvalidParamException extends Exception {
+        // Serial version ID generated by Eclipse.
+        public InvalidParamException(String message) {
+            super(message);
         }
     }
 }

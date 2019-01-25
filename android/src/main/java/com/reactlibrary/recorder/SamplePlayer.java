@@ -142,7 +142,7 @@ public class SamplePlayer {
         mAudioTrack.release();
     }
 
-    public void seekTo(int msec) {
+    public void seekTo(long msec) {
         boolean wasPlaying = isPlaying();
         stop();
         mPlaybackStart = (int)(msec * (mSampleRate / 1000.0));
@@ -155,8 +155,8 @@ public class SamplePlayer {
         }
     }
 
-    public int getCurrentPosition() {
-        return (int)((mPlaybackStart + mAudioTrack.getPlaybackHeadPosition()) *
+    public long getCurrentPosition() {
+        return (long)((mPlaybackStart + mAudioTrack.getPlaybackHeadPosition()) *
                 (1000.0 / mSampleRate));
     }
 }

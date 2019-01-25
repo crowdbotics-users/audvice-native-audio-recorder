@@ -3,10 +3,12 @@ package com.reactlibrary;
 
 import android.view.View;
 
+import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
+import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.uimanager.NativeViewHierarchyManager;
 import com.facebook.react.uimanager.UIBlock;
 import com.facebook.react.uimanager.UIManagerModule;
@@ -100,11 +102,21 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
                 View view = nativeViewHierarchyManager.resolveView(viewId);
                 if (view instanceof RNAudioRecorderView) {
                     RNAudioRecorderView audioRecorderView = (RNAudioRecorderView)view;
-                    String output = audioRecorderView.stopRecording();
-                    if (output == null) {
-                        promise.reject("UnknownError", "Cannot Save the file");
-                    }else {
-                        promise.resolve("filename");
+                    String output = null;
+                    try {
+                        output = audioRecorderView.stopRecording();
+                        long duration = audioRecorderView.getDuration();
+                        if (output == null) {
+                            promise.reject("SaveError", "File Not Found!");
+                        }else {
+                            WritableMap map = Arguments.createMap();
+                            map.putString("filepath", output);
+                            map.putDouble("duration", duration);
+                            promise.resolve(map);
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        promise.reject("SaveError", e.getCause());
                     }
                 } else {
                     promise.reject("error", "Not found view");
@@ -153,8 +165,16 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
                 if (view instanceof RNAudioRecorderView) {
                     try {
                         RNAudioRecorderView audioRecorderView = (RNAudioRecorderView)view;
-                        audioRecorderView.cut(filename, fromTime, toTime);
-                        promise.resolve("success");
+                        String output = audioRecorderView.cut(filename, fromTime, toTime);
+                        long duration = audioRecorderView.getDuration();
+                        if (output == null) {
+                            promise.reject("SaveError", "File Not Found!");
+                        }else {
+                            WritableMap map = Arguments.createMap();
+                            map.putString("filepath", output);
+                            map.putDouble("duration", duration);
+                            promise.resolve(map);
+                        }
                     } catch (FileNotFoundException e) {
                         e.printStackTrace();
                         promise.reject("FileNotFound", e.getCause());
@@ -164,6 +184,9 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
                     } catch (SoundFile.InvalidInputException e) {
                         e.printStackTrace();
                         promise.reject("InvalidFile", e.getCause());
+                    } catch (RNAudioRecorderView.InvalidParamException e) {
+                        e.printStackTrace();
+                        promise.reject("InvalidParam", e.getCause());
                     }
                 } else {
                     promise.reject("ViewNotFound", "Cannot Find View");

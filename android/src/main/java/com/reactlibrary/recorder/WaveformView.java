@@ -144,13 +144,13 @@ public class WaveformView extends View {
         return (pixels * (double) mSamplesPerPixel / (mSampleRate));
     }
 
-    public int millisecsToPixels(int msecs) {
+    public int millisecsToPixels(long msecs) {
         return (int)((msecs * mSampleRate) /
                 (1000.0 * mSamplesPerPixel) + 0.5);
     }
 
-    public int pixelsToMillisecs(int pixels) {
-        return (int)(pixels * (1000.0 * mSamplesPerPixel) /
+    public long pixelsToMillisecs(int pixels) {
+        return (long) ((long)pixels * (1000.0 * mSamplesPerPixel) /
                 (mSampleRate) + 0.5);
     }
 

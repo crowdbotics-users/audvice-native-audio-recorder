@@ -76,7 +76,7 @@ export default class App extends Component<Props> {
     this.audioRecoder.stopRecording()
       .then(res => {
         this.setState({
-          result: res
+          result: `${res.filepath} : ${res.duration} ms`
         })
       })
       .catch((err) => {
@@ -169,7 +169,7 @@ export default class App extends Component<Props> {
     this.audioRecoder.cut('/sdcard/Android/media/com.google.android.talk/Ringtones/hangouts_incoming_call.ogg', 50, 500)
     .then(res => {
       this.setState({
-        result: res,
+        result: `${res.filepath} : ${res.duration} ms`,
         initialized: true
       })
     })
