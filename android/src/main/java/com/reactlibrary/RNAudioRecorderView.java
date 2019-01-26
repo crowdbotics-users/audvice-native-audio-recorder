@@ -384,8 +384,7 @@ public class RNAudioRecorderView extends RelativeLayout {
     private SoundFile.ProgressListener soundProgressListener = new SoundFile.ProgressListener() {
         @Override
         public boolean reportProgress(double fractionComplete) {
-            if (mPlayer != null && mPlayer.isPlaying())
-                messageHandler.obtainMessage(MessageHandler.MSG_UPDATE_WAVEFORM).sendToTarget();
+            messageHandler.obtainMessage(MessageHandler.MSG_UPDATE_WAVEFORM).sendToTarget();
             return !mNeedProcessStop;
         }
     };
