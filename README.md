@@ -3,7 +3,7 @@
 
 ## Getting started
 
-`$ npm install --save https://github.com/crowdbotics-users/audvice-native-audio-recorder.git#android`
+`$ npm install --save https://github.com/crowdbotics-users/audvice-native-audio-recorder.git`
 
 ### Mostly automatic installation
 
