@@ -369,23 +369,13 @@ public class SoundFile {
             } else {
                 ByteBuffer newByteBuffer = ByteBuffer.allocate(mDecodedBytes.capacity());
                 newByteBuffer.put(mDecodedBytes.array(),
-                        startSamples * mChannels * 2,
-                        (endSamples - startSamples) * mChannels * 2);
+                        0,
+                        startSamples * mChannels * 2);
+                newByteBuffer.put(mDecodedBytes.array(),
+                        endSamples * mChannels * 2,
+                        (mNumSamples - endSamples) * mChannels * 2);
                 mNumSamples = newByteBuffer.position() / mChannels / 2;
                 mDecodedBytes = newByteBuffer;
-//
-//                if (startSamples > 0) {
-//                    mDecodedBytes.rewind();
-//                    newByteBuffer.put(mDecodedBytes);
-//                    newByteBuffer.position(startSamples * mChannels * 2);
-//                }
-//
-//                if (endSamples < mNumSamples) {
-//                    mDecodedBytes.position(endSamples * mChannels * 2);
-//                    newByteBuffer.put(mDecodedBytes);
-//                }
-//                mNumSamples = newByteBuffer.position() / (mChannels * 2);
-//                mDecodedBytes = newByteBuffer;
             }
         }
         mDecodedBytes.rewind();

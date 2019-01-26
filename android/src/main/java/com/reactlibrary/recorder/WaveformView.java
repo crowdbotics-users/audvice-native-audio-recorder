@@ -48,13 +48,31 @@ public class WaveformView extends View {
     private int mSamplesPerPixel;
     private int mOffset;
     private int mPlaybackPos;
-    private float mDensity;
+    private float mDensity = 1;
     private float mInitialScaleSpan;
     private WaveformListener mListener;
     private GestureDetector mGestureDetector;
     private boolean mInitialized;
     private short mMaxValue = 12000;
     private boolean mAutoSeeking = false;
+    private int mTimeTextSize = 12;
+
+    public void setPlotLineColor(int color) {
+        mLinePaint.setColor(color);
+        mPlaybackLinePaint.setColor(color);
+        invalidate();
+    }
+
+    public void setTimeTextColor(int color) {
+        mTimecodePaint.setColor(color);
+        invalidate();
+    }
+
+    public void setTimeTextSize(int size) {
+        mTimeTextSize = size;
+        mTimecodePaint.setTextSize(mTimeTextSize * mDensity);
+        invalidate();
+    }
 
     public WaveformView(Context context) {
         super(context);
@@ -72,7 +90,7 @@ public class WaveformView extends View {
         mLinePaint.setAntiAlias(false);
         mLinePaint.setColor(Color.YELLOW);
         mTimecodePaint = new Paint();
-        mTimecodePaint.setTextSize(12);
+        mTimecodePaint.setTextSize(mTimeTextSize * mDensity);
         mTimecodePaint.setAntiAlias(true);
         mTimecodePaint.setColor(Color.GREEN);
         mTimecodePaint.setShadowLayer(2, 1, 1, Color.GREEN);
@@ -188,7 +206,7 @@ public class WaveformView extends View {
 
     public void setDensity(float density) {
         mDensity = density;
-        mTimecodePaint.setTextSize((int)(12 * density));
+        mTimecodePaint.setTextSize((int)(mTimeTextSize * density));
     }
 
     public void setListener(WaveformListener listener) {
@@ -272,7 +290,15 @@ public class WaveformView extends View {
         // Draw grid
         fractionalSecs = offset * onePixelInSecs;
         int integerTimecode = (int) (fractionalSecs / timecodeIntervalSecs);
+
+        if (fractionalSecs < 0 && integerTimecode == 0) {
+            integerTimecode = -1;
+        }
+
         i = 0;
+
+        if (mSampleRate == 0) return;
+
         while (i < measuredWidth) {
             i++;
             fractionalSecs += onePixelInSecs;
@@ -294,7 +320,7 @@ public class WaveformView extends View {
                         0.5 * mTimecodePaint.measureText(timecodeStr));
                 canvas.drawText(timecodeStr,
                         i - diff,
-                        (int)(12 * mDensity),
+                        (int)(mTimeTextSize * mDensity),
                         mTimecodePaint);
             }
         }

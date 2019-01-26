@@ -18,9 +18,6 @@ const RNAudioRecorderView = requireNativeComponent('RNAudioRecorderView')
 export default class AudioRecorder extends React.Component {
   constructor(props) {
     super(props)
-    this.state = {
-      lastaction: ''
-    }
   }
 
   initialize(filename, startTimeInMS) {
@@ -57,14 +54,18 @@ export default class AudioRecorder extends React.Component {
       height,
       onScroll,
       pixelsPerSecond,
-      plotLineColor      
+      plotLineColor,
+      timeTextColor,
+      timeTextSize
     } = this.props
     return(
-      <RNAudioRecorderView style={this.props.style} status={this.state.lastaction}
+      <RNAudioRecorderView style={this.props.style}
         ref={ref => this.recorderView = ref}
         onScroll={onScroll}
         pixelsPerSecond={pixelsPerSecond}
-        plotLineColor={plotLineColor}/>
+        plotLineColor={plotLineColor}
+        timeTextColor={timeTextColor}
+        timeTextSize={timeTextSize} />
     )
   }
 }
@@ -76,7 +77,8 @@ AudioRecorder.propTypes = {
   width: PropTypes.number,
   pixelsPerSecond: PropTypes.number,
   plotLineColor: PropTypes.string,
-  timeLineStyle: Text.propTypes.style
+  timeTextColor: PropTypes.string,
+  timeTextSize: PropTypes.number
 }
 
 AudioRecorder.defaultProps = {
@@ -85,7 +87,6 @@ AudioRecorder.defaultProps = {
   width: 0,
   pixelsPerSecond: 50,
   plotLineColor: 'white',
-  timeLineStyle: {
-    color: 'white'
-  }
+  timeTextColor: 'white',
+  timeTextSize: 20
 }

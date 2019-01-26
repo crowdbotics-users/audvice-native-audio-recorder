@@ -60,7 +60,7 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
                         promise.resolve("success");
                     } catch (FileNotFoundException e) {
                         e.printStackTrace();
-                        promise.reject("FileNotFound", e.getCause());
+                        promise.reject("FileNotFound", "Doesn't exist audio file");
                     } catch (IOException e) {
                         e.printStackTrace();
                         promise.reject("InvalidFile", e.getCause());
@@ -177,7 +177,7 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
                         }
                     } catch (FileNotFoundException e) {
                         e.printStackTrace();
-                        promise.reject("FileNotFound", e.getCause());
+                        promise.reject("FileNotFound", "Doesn't exist audio file");
                     } catch (IOException e) {
                         e.printStackTrace();
                         promise.reject("InvalidFile", e.getCause());

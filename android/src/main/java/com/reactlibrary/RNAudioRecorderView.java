@@ -47,6 +47,9 @@ public class RNAudioRecorderView extends RelativeLayout {
     private boolean mInitialized = false;
     private boolean mNeedProcessStop = false;
 
+    private boolean onScrollWhenPlay = true;
+    private int mPixelsPerSec = 100;
+
     Thread mRecordAudioThread;
 
     public RNAudioRecorderView(Context context) {
@@ -70,6 +73,28 @@ public class RNAudioRecorderView extends RelativeLayout {
         this.addView(mTvStatus, params);
     }
 
+    // property
+
+    public void setOnScroll(boolean onScroll) {
+        onScrollWhenPlay = onScroll;
+    }
+
+    public void setPixelsPerSecond(int pixelsPerSecond) {
+        mPixelsPerSec = pixelsPerSecond;
+    }
+
+    public void setTimeTextColor(int color) {
+        mWaveForm.setTimeTextColor(color);
+    }
+
+    public void setPlotLineColor(int color) {
+        mWaveForm.setPlotLineColor(color);
+    }
+
+    public void setTimeTextSize(int size) {
+        mWaveForm.setTimeTextSize(size);
+    }
+
     public void initialize(String filename, int offsetInMs) {
         // start initialize for record
         // check the audio record permission
@@ -90,7 +115,7 @@ public class RNAudioRecorderView extends RelativeLayout {
         mOutputFile = filename;
         if (offsetInMs != 0) {
             try {
-                mSoundFile = SoundFile.create(filename, 100, offsetInMs, -1, soundProgressListener);
+                mSoundFile = SoundFile.create(filename, mPixelsPerSec, offsetInMs, -1, soundProgressListener);
             } catch (Exception e) {
                 e.printStackTrace();
                 mSoundFile = null;
@@ -99,7 +124,7 @@ public class RNAudioRecorderView extends RelativeLayout {
 
         if (mSoundFile == null) {
             mOutputFile = null;
-            mSoundFile = SoundFile.createRecord(100, soundProgressListener);
+            mSoundFile = SoundFile.createRecord(mPixelsPerSec, soundProgressListener);
         }
 
         mWaveForm.setSoundFile(mSoundFile);
@@ -127,7 +152,7 @@ public class RNAudioRecorderView extends RelativeLayout {
         }
 
         // create sound file
-        mSoundFile = SoundFile.create(filename, 100, -1, -1, soundProgressListener);
+        mSoundFile = SoundFile.create(filename, mPixelsPerSec, -1, -1, soundProgressListener);
 
         if (mSoundFile == null) {
             throw new FileNotFoundException();
@@ -172,7 +197,7 @@ public class RNAudioRecorderView extends RelativeLayout {
             throw new InvalidParamException("Invalid Parameter is used");
         }
 
-        mSoundFile = SoundFile.create(filename, 100, fromTime, toTime, soundProgressListener);
+        mSoundFile = SoundFile.create(filename, mPixelsPerSec, fromTime, toTime, soundProgressListener);
 
         if (mSoundFile == null) {
             throw new FileNotFoundException();
@@ -304,7 +329,8 @@ public class RNAudioRecorderView extends RelativeLayout {
             if (mPlayer != null && mPlayer.isPlaying()) {
                 int pixels = mWaveForm.millisecsToPixels(mPlayer.getCurrentPosition());
                 if (pixels < mWaveForm.maxPos() - 5) {
-                    mWaveForm.setOffset(pixels);
+                    if (onScrollWhenPlay)
+                        mWaveForm.setOffset(pixels);
                     mPlayerHandler.postDelayed(playRunnable, 25);
                 } else {
                     completedPlay();
@@ -314,7 +340,8 @@ public class RNAudioRecorderView extends RelativeLayout {
     };
 
     private synchronized void completedPlay() {
-        mWaveForm.setOffset(mWaveForm.maxPos());
+        if (onScrollWhenPlay)
+            mWaveForm.setOffset(mWaveForm.maxPos());
         releasePlayer();
     }
 
@@ -357,7 +384,8 @@ public class RNAudioRecorderView extends RelativeLayout {
     private SoundFile.ProgressListener soundProgressListener = new SoundFile.ProgressListener() {
         @Override
         public boolean reportProgress(double fractionComplete) {
-            messageHandler.obtainMessage(MessageHandler.MSG_UPDATE_WAVEFORM).sendToTarget();
+            if (mPlayer != null && mPlayer.isPlaying())
+                messageHandler.obtainMessage(MessageHandler.MSG_UPDATE_WAVEFORM).sendToTarget();
             return !mNeedProcessStop;
         }
     };

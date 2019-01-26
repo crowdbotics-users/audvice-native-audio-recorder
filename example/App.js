@@ -166,7 +166,7 @@ export default class App extends Component<Props> {
       )
       return
     }
-    this.audioRecoder.cut('/sdcard/Android/media/com.google.android.talk/Ringtones/hangouts_incoming_call.ogg', 50, 500)
+    this.audioRecoder.cut('/sdcard/Android/media/com.google.android.talk/Ringtones/hangouts_incoming_call.ogg', 500, 2000)
     .then(res => {
       this.setState({
         result: `${res.filepath} : ${res.duration} ms`,
@@ -184,9 +184,12 @@ export default class App extends Component<Props> {
     return (
       <View style={styles.container}>
         <AudioRecorder
-          style={{width: '100%', height: '25%', backgroundColor: 'red'}}
-          height={100}
-          width={100}
+          style={{width: '75%', height: 200, backgroundColor: 'green'}}
+          plotLineColor={'yellow'}
+          timeTextColor={'white'}
+          timeTextSize={12}
+          onScroll={true}
+          pixelsPerSecond={200}
           ref={ref => this.audioRecoder = ref}
         />
         <View style={styles.buttonContainer}>
