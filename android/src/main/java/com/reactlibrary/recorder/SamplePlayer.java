@@ -106,7 +106,6 @@ public class SamplePlayer {
                         }
                         mSamples.get(mBuffer, 0, numSamplesLeft);
                     }
-                    // TODO(nfaralli): use the write method that takes a ByteBuffer as argument.
                     mAudioTrack.write(mBuffer, 0, mBuffer.length);
                 }
             }

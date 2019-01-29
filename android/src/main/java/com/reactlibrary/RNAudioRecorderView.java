@@ -36,20 +36,22 @@ public class RNAudioRecorderView extends RelativeLayout {
 
     SoundFile mSoundFile;
     SamplePlayer mPlayer = null;
-    Handler mPlayerHandler = new Handler();
     String mOutputFile = null;
+    Handler mPlayerHandler = new Handler();
 
-    private boolean mTouchDragging = false;
+    // Gesture related properties used on listener of WaveformView
     private float mTouchStart = 0;
     private int mTouchInitialOffset = 0;
-    private float mFlingVelocity = 0;
+    private boolean mNeedProcessStop = false;// The flag to cancel the action of sound file.
+    private boolean mTouchDragging;
+    private int mFlingVelocity;
 
-    private boolean mInitialized = false;
-    private boolean mNeedProcessStop = false;
-
+    // Properties from JavaScript, other properties applied directly into WaveformView
     private boolean onScrollWhenPlay = true;
     private int mPixelsPerSec = 100;
 
+    // The Thread for Audio Recording.
+    // It should be existed only while recording.
     Thread mRecordAudioThread;
 
     public RNAudioRecorderView(Context context) {
@@ -57,6 +59,7 @@ public class RNAudioRecorderView extends RelativeLayout {
         addSubViews();
     }
 
+    // Create/Add Waveform and status view.
     void addSubViews() {
         LayoutParams params1 = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
         mWaveForm = new WaveformView(getContext());
@@ -73,29 +76,40 @@ public class RNAudioRecorderView extends RelativeLayout {
         this.addView(mTvStatus, params);
     }
 
-    // property
-
+    // setter onScroll property from Java Script
     public void setOnScroll(boolean onScroll) {
         onScrollWhenPlay = onScroll;
     }
 
+    // setter pixelsPerSecond property from Java Script
     public void setPixelsPerSecond(int pixelsPerSecond) {
         mPixelsPerSec = pixelsPerSecond;
     }
 
+    // setter timeTextColor property from Java Script
     public void setTimeTextColor(int color) {
         mWaveForm.setTimeTextColor(color);
     }
 
+    // setter plotLineColor property from Java Script
     public void setPlotLineColor(int color) {
         mWaveForm.setPlotLineColor(color);
     }
 
+    // setter timeTextSize property from Java Script
     public void setTimeTextSize(int size) {
         mWaveForm.setTimeTextSize(size);
     }
 
-    public void initialize(String filename, int offsetInMs) {
+    // Some Initialize Functions.
+    // There are 3 Initialize Functions, initialize(filepath, offsetInMs), renderByFile(filepath), cut(filepath, startTimeInMs, endTimeInMs)
+    // open file is support following formats
+    // "mp3", "wav", "3gpp", "3gp", "amr", "aac", "m4a", "ogg"
+    // saved only "wav"
+    //
+    // initialize(filepath, offsetInMs)
+
+    public void initialize(String filepath, int offsetInMs) {
         // start initialize for record
         // check the audio record permission
         if (!hasPermissions()) {
@@ -104,24 +118,25 @@ public class RNAudioRecorderView extends RelativeLayout {
             mWaveForm.setVisibility(View.GONE);
             return;
         }
-        // init
 
+        // init
         mNeedProcessStop = false;
         if (mSoundFile != null) {
             mSoundFile = null;
         }
 
         // create sound file
-        mOutputFile = filename;
+        mOutputFile = filepath;
         if (offsetInMs != 0) {
             try {
-                mSoundFile = SoundFile.create(filename, mPixelsPerSec, offsetInMs, -1, soundProgressListener);
+                mSoundFile = SoundFile.create(filepath, mPixelsPerSec, offsetInMs, -1, soundProgressListener);
             } catch (Exception e) {
                 e.printStackTrace();
                 mSoundFile = null;
             }
         }
 
+        // if fail, create new file for recording.
         if (mSoundFile == null) {
             mOutputFile = null;
             mSoundFile = SoundFile.createRecord(mPixelsPerSec, soundProgressListener);
@@ -131,6 +146,7 @@ public class RNAudioRecorderView extends RelativeLayout {
         mWaveForm.invalidate();
     }
 
+    // init with filename, if file not exist, return fail with exception.
     public void renderByFile(String filename) throws IOException,
             FileNotFoundException,
             SoundFile.InvalidInputException
@@ -162,6 +178,7 @@ public class RNAudioRecorderView extends RelativeLayout {
         mWaveForm.invalidate();
     }
 
+    // init cut file with filename, if file not exist, return fail with exception.
     public String cut(String filename, final int fromTime, final int toTime) throws IOException,
             FileNotFoundException,
             SoundFile.InvalidInputException,
@@ -213,6 +230,8 @@ public class RNAudioRecorderView extends RelativeLayout {
         return stopRecording();
     }
 
+    // destroy function, invoked from JavaScript
+    // release player and close recording
     public void destroy() {
         releasePlayer();
         closeThread(mRecordAudioThread);
@@ -220,28 +239,26 @@ public class RNAudioRecorderView extends RelativeLayout {
         mSoundFile = null;
     }
 
-    private void closeThread(Thread thread) {
-        if (thread != null && thread.isAlive()) {
-            try {
-                thread.join();
-            } catch (InterruptedException e) {
-            }
-        }
-    }
-
+    // Start Recording, invoked from JavaScript
+    // Requirement: initialized. It should be checked on Javascript.    
     public void startRecording() {
-        // if mplayer, clear it.
+        // if no Sound File, clear it.
         if (mSoundFile == null) return;
+
+        // If play, release it.
         releasePlayer();
         mNeedProcessStop = false;
 
+        // If Recording, pause it.
         if (mRecordAudioThread != null) {
             mNeedProcessStop = true;
             return;
         }
 
+        // if the position isn't on end of file, the sound should be truncated and continue the recording.
         mSoundFile.truncateFile(mWaveForm.pixelsToMillisecs(mWaveForm.getOffset()));
 
+        // Create Audio Recording Thread
         mRecordAudioThread = new Thread(){
             @Override
             public void run() {
@@ -253,8 +270,12 @@ public class RNAudioRecorderView extends RelativeLayout {
         mRecordAudioThread.start();
     }
 
+    // Stop Recording and return the path of recorded audio file
     String stopRecording() throws IOException {
+        // if no sound file, return null
         if (mSoundFile == null) return null;
+
+        // release player
         releasePlayer();
         mNeedProcessStop = true;
 
@@ -262,14 +283,9 @@ public class RNAudioRecorderView extends RelativeLayout {
 
         String extension = mSoundFile.getFiletype();
 
-        if (extension.equals("mp3") || extension.equals("m4a")) {
-            File outFile = new File(mOutputFile);
-            if (outFile.exists()) {
-                outFile.delete();
-            }
-            mSoundFile.WriteFile(outFile);
-            return mOutputFile;
-        } else if (extension.equals("wav")) {
+        // if source is wav file, overwrite it,
+        // if not, create new wav file.
+        if (extension.equals("wav")) {
             File outFile = new File(mOutputFile);
             if (outFile.exists()) {
                 outFile.delete();
@@ -284,25 +300,18 @@ public class RNAudioRecorderView extends RelativeLayout {
         }
     }
 
+    // return duration of audio file
     public long getDuration() {
         if (mSoundFile == null) return 0;
         return (long)mSoundFile.getNumSamples() * 1000 / mSoundFile.getSampleRate();
     }
 
-    private void releasePlayer() {
-        if (mPlayer != null) {
-            if (mPlayer.isPlaying()) {
-                mPlayer.stop();
-            }
-            mPlayer.release();
-            mPlayer = null;
-            mPlayerHandler.removeCallbacks(playRunnable);
-        }
-    }
-
+    // play/pause audio file
     public void play() {
         if (mSoundFile == null) return;
         if (mPlayer == null) {
+
+            // Create Player
             mPlayer = new SamplePlayer(mSoundFile);
             mPlayer.setOnCompletionListener(new SamplePlayer.OnCompletionListener() {
 
@@ -323,6 +332,7 @@ public class RNAudioRecorderView extends RelativeLayout {
         }
     }
 
+    // Play Runnable to update waveform
     Runnable playRunnable = new Runnable() {
         @Override
         public void run() {
@@ -331,6 +341,8 @@ public class RNAudioRecorderView extends RelativeLayout {
                 if (pixels < mWaveForm.maxPos() - 5) {
                     if (onScrollWhenPlay)
                         mWaveForm.setOffset(pixels);
+
+                    // Update state per 25 Ms
                     mPlayerHandler.postDelayed(playRunnable, 25);
                 } else {
                     completedPlay();
@@ -339,35 +351,36 @@ public class RNAudioRecorderView extends RelativeLayout {
         }
     };
 
+    // close audio recording thread
+    private void closeThread(Thread thread) {
+        if (thread != null && thread.isAlive()) {
+            try {
+                thread.join();
+            } catch (InterruptedException e) {
+            }
+        }
+    }
+
+    // release player
+    private void releasePlayer() {
+        if (mPlayer != null) {
+            if (mPlayer.isPlaying()) {
+                mPlayer.stop();
+            }
+            mPlayer.release();
+            mPlayer = null;
+            mPlayerHandler.removeCallbacks(playRunnable);
+        }
+    }
+
+    // this function is called, when the playing is finished.
     private synchronized void completedPlay() {
         if (onScrollWhenPlay)
             mWaveForm.setOffset(mWaveForm.maxPos());
         releasePlayer();
     }
 
-    public String formatDuration(long diff) {
-        int diffMilliseconds = (int) (diff % 1000);
-        int diffSeconds = (int) (diff / 1000 % 60);
-        int diffMinutes = (int) (diff / (60 * 1000) % 60);
-        int diffHours = (int) (diff / (60 * 60 * 1000) % 24);
-        int diffDays = (int) (diff / (24 * 60 * 60 * 1000));
-
-        String str = "";
-
-        if (diffDays > 0)
-            str = diffDays + "days " + formatTime(diffHours) + ":" + formatTime(diffMinutes) + ":" + formatTime(diffSeconds);
-        else if (diffHours > 0)
-            str = formatTime(diffHours) + ":" + formatTime(diffMinutes) + ":" + formatTime(diffSeconds);
-        else
-            str = formatTime(diffMinutes) + ":" + formatTime(diffSeconds);
-
-        return str;
-    }
-
-    public String formatTime(int tt) {
-        return String.format("%02d", tt);
-    }
-
+    // check permission
     boolean hasPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             return (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED &&
@@ -377,10 +390,7 @@ public class RNAudioRecorderView extends RelativeLayout {
         }
     }
 
-    public void setStatus(String status) {
-        mTvStatus.setText(status);
-    }
-
+    // while recording, this listener should be called, send the message to waveform to update itself.
     private SoundFile.ProgressListener soundProgressListener = new SoundFile.ProgressListener() {
         @Override
         public boolean reportProgress(double fractionComplete) {
@@ -389,10 +399,12 @@ public class RNAudioRecorderView extends RelativeLayout {
         }
     };
 
-    void updateWavrForm() {
+    // update waveform
+    void updateWaveForm() {
         mWaveForm.updateRecording();
     }
 
+    // Gesture Listener from Wave Form
     private WaveformView.WaveformListener waveformListener = new WaveformView.WaveformListener() {
         @Override
         public void waveformTouchStart(float x) {
@@ -422,6 +434,7 @@ public class RNAudioRecorderView extends RelativeLayout {
         }
     };
 
+    // Create Random file on sdcar/audiorecorder/[DATE].wav
     public static String makeRandomFilePath(String extension) {
         String externalRootDir = Environment.getExternalStorageDirectory().getPath();
         if (!externalRootDir.endsWith("/")) {
@@ -453,7 +466,7 @@ public class RNAudioRecorderView extends RelativeLayout {
             switch (msg.what) {
                 case MSG_UPDATE_WAVEFORM:
                 {
-                    updateWavrForm();
+                    updateWaveForm();
                 }
             }
         }

@@ -82,7 +82,7 @@ public class WaveformView extends View {
 
         mGridPaint = new Paint();
         mGridPaint.setAntiAlias(false);
-        mGridPaint.setColor(Color.TRANSPARENT);// TODO
+        mGridPaint.setColor(Color.TRANSPARENT);
         mPlaybackLinePaint = new Paint();
         mPlaybackLinePaint.setAntiAlias(false);
         mPlaybackLinePaint.setColor(Color.WHITE);
@@ -93,7 +93,6 @@ public class WaveformView extends View {
         mTimecodePaint.setTextSize(mTimeTextSize * mDensity);
         mTimecodePaint.setAntiAlias(true);
         mTimecodePaint.setColor(Color.GREEN);
-        mTimecodePaint.setShadowLayer(2, 1, 1, Color.GREEN);
 
         mGestureDetector = new GestureDetector(
                 context,
