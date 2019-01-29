@@ -182,6 +182,7 @@ public class WaveformView extends View {
     }
 
     public void setOffset(int offset) {
+        if (mSoundFile == null) return;
         mOffset = Math.max(0, offset);
         mOffset = Math.min(mOffset, mSoundFile.getNumPixels());
         invalidate();
@@ -199,8 +200,9 @@ public class WaveformView extends View {
         return mAutoSeeking;
     }
 
-    public void updateRecording() {
-        setOffset(mSoundFile.getNumPixels());
+    public void updateRecording(float posInS) {
+        setOffset(millisecsToPixels((long)(1000 * posInS)));
+        // setOffset(mSoundFile.getNumPixels());
     }
 
     public void setDensity(float density) {

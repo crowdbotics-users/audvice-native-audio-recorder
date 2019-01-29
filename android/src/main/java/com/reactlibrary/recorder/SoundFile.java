@@ -417,7 +417,20 @@ public class SoundFile {
         mLastGain = 0;
     }
 
-    public void RecordAudio(int offset) {
+    public void RecordAudio(long offsetInMs) {
+        int samplesForPos = (int)(mSampleRate / 1000 * offsetInMs);
+        int currentGainIndex = pixelGains.size() - 1;
+        if (samplesForPos < mNumSamples) {
+            // remove graph data
+            currentGainIndex = samplesForPos / mSamplesPerPixel;
+            if (currentGainIndex < pixelGains.size()) {
+                mLastGain = pixelGains.get(currentGainIndex);
+                mLastSamples = samplesForPos % mSamplesPerPixel;
+            }
+            // change position
+            mDecodedSamples.position(samplesForPos * mChannels);
+        }
+
         android.os.Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO);
         short[] buffer = new short[1024];  // buffer contains 1 mono frame of 1024 16 bits samples
         int channelConfig = (mChannels == 1 ? AudioFormat.CHANNEL_IN_MONO : AudioFormat.CHANNEL_IN_STEREO);
@@ -462,6 +475,7 @@ public class SoundFile {
             mDecodedSamples.put(buffer);
             // Let the progress listener know how many seconds have been recorded.
             // The returned value tells us if we should keep recording or stop.
+
             int value = 0;
             for (int i = 0; i< buffer.length; i++) {
                 value += java.lang.Math.abs(buffer[i]);
@@ -476,18 +490,26 @@ public class SoundFile {
                 mLastSamples++;
                 value = 0;
                 if (mLastSamples < mSamplesPerPixel) continue;
-                pixelGains.add(mLastGain);
+                if (currentGainIndex < pixelGains.size()) {
+                    pixelGains.set(currentGainIndex, mLastGain);
+                } else {
+                    pixelGains.add(mLastGain);
+                }
+                currentGainIndex++;
                 mLastGain = 0;
                 mLastSamples = 0;
             }
             if (!mProgressListener.reportProgress(
-                    (float)(mDecodedSamples.position()) / mSampleRate)) {
+                    (double)(mDecodedSamples.position()) / mSampleRate / mChannels)) {
                 break;
             }
         }
         audioRecord.stop();
         audioRecord.release();
-        mNumSamples = mDecodedSamples.position() / mChannels;
+        int numSamples = mDecodedSamples.position() / mChannels;
+        if (mNumSamples < numSamples) {
+            mNumSamples = numSamples;
+        }
         mAvgBitRate = mSampleRate * 16 / 1000;
     }
 

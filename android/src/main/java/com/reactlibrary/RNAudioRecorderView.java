@@ -143,7 +143,7 @@ public class RNAudioRecorderView extends RelativeLayout {
         }
 
         mWaveForm.setSoundFile(mSoundFile);
-        mWaveForm.invalidate();
+        mWaveForm.setPlaySeek(0);
     }
 
     // init with filename, if file not exist, return fail with exception.
@@ -175,7 +175,7 @@ public class RNAudioRecorderView extends RelativeLayout {
         }
 
         mWaveForm.setSoundFile(mSoundFile);
-        mWaveForm.invalidate();
+        mWaveForm.setPlaySeek(0);
     }
 
     // init cut file with filename, if file not exist, return fail with exception.
@@ -225,7 +225,7 @@ public class RNAudioRecorderView extends RelativeLayout {
         }
 
         mWaveForm.setSoundFile(mSoundFile);
-        mWaveForm.invalidate();
+        mWaveForm.setPlaySeek(0);
 
         return stopRecording();
     }
@@ -256,13 +256,14 @@ public class RNAudioRecorderView extends RelativeLayout {
         }
 
         // if the position isn't on end of file, the sound should be truncated and continue the recording.
-        mSoundFile.truncateFile(mWaveForm.pixelsToMillisecs(mWaveForm.getOffset()));
+        // mSoundFile.truncateFile(mWaveForm.pixelsToMillisecs(mWaveForm.getOffset()));
+        final long offsetInMs = mWaveForm.pixelsToMillisecs(mWaveForm.getOffset());
 
         // Create Audio Recording Thread
         mRecordAudioThread = new Thread(){
             @Override
             public void run() {
-                mSoundFile.RecordAudio(0);
+                mSoundFile.RecordAudio(offsetInMs);
                 mNeedProcessStop = false;
                 mRecordAudioThread = null;
             }
@@ -394,14 +395,14 @@ public class RNAudioRecorderView extends RelativeLayout {
     private SoundFile.ProgressListener soundProgressListener = new SoundFile.ProgressListener() {
         @Override
         public boolean reportProgress(double fractionComplete) {
-            messageHandler.obtainMessage(MessageHandler.MSG_UPDATE_WAVEFORM).sendToTarget();
+            messageHandler.obtainMessage(MessageHandler.MSG_UPDATE_WAVEFORM, fractionComplete).sendToTarget();
             return !mNeedProcessStop;
         }
     };
 
     // update waveform
-    void updateWaveForm() {
-        mWaveForm.updateRecording();
+    void updateWaveForm(double posInS) {
+        mWaveForm.setPlaySeek((long)(posInS * 1000));
     }
 
     // Gesture Listener from Wave Form
@@ -466,7 +467,7 @@ public class RNAudioRecorderView extends RelativeLayout {
             switch (msg.what) {
                 case MSG_UPDATE_WAVEFORM:
                 {
-                    updateWaveForm();
+                    updateWaveForm((double)msg.obj);
                 }
             }
         }
