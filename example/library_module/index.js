@@ -18,41 +18,34 @@ const RNAudioRecorderView = requireNativeComponent('RNAudioRecorderView')
 export default class AudioRecorder extends React.Component {
   constructor(props) {
     super(props)
-    this.state = {
-      lastaction: ''
-    }
   }
 
-  initialize() {
-    RNAudioRecorder.initialize(findNodeHandle(this.recorderView))
+  initialize(filename, startTimeInMS) {
+    RNAudioRecorder.initialize(findNodeHandle(this.recorderView), filename, startTimeInMS)
   }
 
-  startRecording(filename, startTimeInMS) {
-    RNAudioRecorder.startRecording(findNodeHandle(this.recorderView), filename, startTimeInMS)
+  renderByFile(filename) {
+    return RNAudioRecorder.renderByFile(findNodeHandle(this.recorderView), filename)
+  }
+
+  startRecording() {
+    RNAudioRecorder.startRecording(findNodeHandle(this.recorderView))
   }
 
   stopRecording(){
-    RNAudioRecorder.stopRecording(findNodeHandle(this.recorderView))
-      .then(res => {
-        console.warn(res);
-      })
-      .catch((err) => console.warn(err))
+    return RNAudioRecorder.stopRecording(findNodeHandle(this.recorderView))      
   }
 
   play() {
     RNAudioRecorder.play(findNodeHandle(this.recorderView))
   }
 
-  renderByFile(filename){
-    RNAudioRecorder.renderByFile(findNodeHandle(this.recorderView), filename)
-  }
-
   cut(filename, fromTime, toTime){
-    RNAudioRecorder.cut(findNodeHandle(this.recorderView), filename, fromTime, toTime)
+    return RNAudioRecorder.cut(findNodeHandle(this.recorderView), filename, fromTime, toTime)
   }
 
   destroy() {
-    RNAudioRecorder.destroy(findNodeHandle(this.recorderView))
+    return RNAudioRecorder.destroy(findNodeHandle(this.recorderView))
   }
 
   render() {
@@ -61,14 +54,18 @@ export default class AudioRecorder extends React.Component {
       height,
       onScroll,
       pixelsPerSecond,
-      plotLineColor      
+      plotLineColor,
+      timeTextColor,
+      timeTextSize
     } = this.props
     return(
-      <RNAudioRecorderView style={this.props.style} status={this.state.lastaction}
+      <RNAudioRecorderView style={this.props.style}
         ref={ref => this.recorderView = ref}
         onScroll={onScroll}
         pixelsPerSecond={pixelsPerSecond}
-        plotLineColor={plotLineColor}/>
+        plotLineColor={plotLineColor}
+        timeTextColor={timeTextColor}
+        timeTextSize={timeTextSize} />
     )
   }
 }
@@ -80,7 +77,8 @@ AudioRecorder.propTypes = {
   width: PropTypes.number,
   pixelsPerSecond: PropTypes.number,
   plotLineColor: PropTypes.string,
-  timeLineStyle: Text.propTypes.style
+  timeTextColor: PropTypes.string,
+  timeTextSize: PropTypes.number
 }
 
 AudioRecorder.defaultProps = {
@@ -89,7 +87,6 @@ AudioRecorder.defaultProps = {
   width: 0,
   pixelsPerSecond: 50,
   plotLineColor: 'white',
-  timeLineStyle: {
-    color: 'white'
-  }
+  timeTextColor: 'white',
+  timeTextSize: 20
 }

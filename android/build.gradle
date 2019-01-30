@@ -13,8 +13,8 @@ buildscript {
 apply plugin: 'com.android.library'
 
 android {
-    compileSdkVersion rootProject.ext.hasProperty('compileSdkVersion') ? rootProject.ext.compileSdkVersion : 27
-    buildToolsVersion rootProject.ext.hasProperty('buildToolsVersion') ? rootProject.ext.buildToolsVersion : "27.0.3"
+    compileSdkVersion 25
+    buildToolsVersion "27.0.3"
 
     defaultConfig {
         minSdkVersion rootProject.ext.hasProperty('minSdkVersion') ? rootProject.ext.minSdkVersion : 16
@@ -36,5 +36,6 @@ repositories {
 
 dependencies {
     implementation 'com.facebook.react:react-native:+'
+    api 'com.github.axet:android-library:1.27.0'
 }
   
