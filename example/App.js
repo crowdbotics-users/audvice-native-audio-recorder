@@ -33,7 +33,6 @@ export default class App extends Component<Props> {
     if (Platform.OS === 'android') {
       Permissions.checkMultiple(['microphone', 'storage'])
       .then(response => {        
-        var permissionArray = []
         if (response.microphone !== 'authorized') {
           Permissions.request('microphone')
           .then(response => {
@@ -51,6 +50,38 @@ export default class App extends Component<Props> {
             .then(response => {
             })
           }else{            
+            this.setState({
+              hasPermissions: true
+            })
+          }       
+        }       
+      })
+    } else {
+      Permissions.checkMultiple(['microphone', 'mediaLibrary'])
+      .then(response => {  
+        
+        console.warn(response)      
+        if (response.microphone !== 'authorized') {
+          Permissions.request('microphone')
+          .then(response => {
+            if (response.mediaLibrary !== 'authorized') {
+              Permissions.request('mediaLibrary')
+              .then(response => {
+              })
+            }else{              
+            }
+          })
+        } else {   
+          if (response.mediaLibrary !== 'authorized') {
+            Permissions.request('mediaLibrary')
+            .then(response => {
+              if (response == 'authorized') {
+                this.setState({
+                  hasPermissions: true
+                })
+              }
+            })
+          }else{
             this.setState({
               hasPermissions: true
             })
