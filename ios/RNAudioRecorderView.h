@@ -13,6 +13,22 @@
 
 @interface RNAudioRecorderView : UIView
 
+@property (nonatomic) NSInteger pixelsPerSecond;
+@property (strong, nonatomic) UIColor *timeTextColor;
+@property (nonatomic) NSInteger timeTextSize;
+@property (strong, nonatomic) UIColor *plotLineColor;
+@property (nonatomic) BOOL onScroll;
+
 - (id)initWithBridge:(RCTBridge *)bridge;
+
+// methods
+- (void) initialize:(NSString *) filepath offset:(long) offset;
+- (NSString*) renderByFile:(NSString*) filepath;
+- (NSString*) cut:(NSString*) filepath fromTimeInMs:(long) fromTime toTimeInMs:(long) toTime;
+- (void) destroy;
+- (void) startRecording;
+- (NSString*) stopRecording;
+- (void) play;
+- (long) getDuration;
 
 @end

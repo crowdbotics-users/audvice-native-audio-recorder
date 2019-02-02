@@ -41,6 +41,7 @@
 		832341BD1AAA6AB300B99B32 /* libRCTText.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 832341B51AAA6A8300B99B32 /* libRCTText.a */; };
 		ADBDB9381DFEBF1600ED6528 /* libRCTBlob.a in Frameworks */ = {isa = PBXBuildFile; fileRef = ADBDB9271DFEBF0700ED6528 /* libRCTBlob.a */; };
 		D787B2BB22037473004F2BED /* libReactNativePermissions.a in Frameworks */ = {isa = PBXBuildFile; fileRef = D787B2BA22037450004F2BED /* libReactNativePermissions.a */; };
+		D7EA7B4E220528810050A84D /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D7EA7B26220528810050A84D /* AudioToolbox.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -352,6 +353,7 @@
 		832341B01AAA6A8300B99B32 /* RCTText.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = RCTText.xcodeproj; path = "../node_modules/react-native/Libraries/Text/RCTText.xcodeproj"; sourceTree = "<group>"; };
 		ADBDB91F1DFEBF0600ED6528 /* RCTBlob.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = RCTBlob.xcodeproj; path = "../node_modules/react-native/Libraries/Blob/RCTBlob.xcodeproj"; sourceTree = "<group>"; };
 		D787B2B522037450004F2BED /* ReactNativePermissions.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = ReactNativePermissions.xcodeproj; path = "../node_modules/react-native-permissions/ios/ReactNativePermissions.xcodeproj"; sourceTree = "<group>"; };
+		D7EA7B26220528810050A84D /* AudioToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioToolbox.framework; path = System/Library/Frameworks/AudioToolbox.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -359,6 +361,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D7EA7B4E220528810050A84D /* AudioToolbox.framework in Frameworks */,
 				D787B2BB22037473004F2BED /* libReactNativePermissions.a in Frameworks */,
 				05C3AC4B21F177BE00EE742F /* Foundation.framework in Frameworks */,
 				05C3AC4921F177BA00EE742F /* CoreFoundation.framework in Frameworks */,
@@ -525,6 +528,7 @@
 		2D16E6871FA4F8E400B85C8A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				D7EA7B26220528810050A84D /* AudioToolbox.framework */,
 				05C3AC4A21F177BE00EE742F /* Foundation.framework */,
 				05C3AC4821F177B900EE742F /* CoreFoundation.framework */,
 				05C3AC4621F177B400EE742F /* UIKit.framework */,

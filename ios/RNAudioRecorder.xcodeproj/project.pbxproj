@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		D787B28E22036E18004F2BED /* RNAudioRecorderViewManager.m in Sources */ = {isa = PBXBuildFile; fileRef = D787B28D22036E18004F2BED /* RNAudioRecorderViewManager.m */; };
 		D787B2BE220388CA004F2BED /* RNAudioRecorderView.m in Sources */ = {isa = PBXBuildFile; fileRef = D787B2BD220388CA004F2BED /* RNAudioRecorderView.m */; };
+		D7EA7B222204CF510050A84D /* WaveFormView.m in Sources */ = {isa = PBXBuildFile; fileRef = D7EA7B212204CF510050A84D /* WaveFormView.m */; };
+		D7EA7B25220519430050A84D /* SoundFile.m in Sources */ = {isa = PBXBuildFile; fileRef = D7EA7B24220519430050A84D /* SoundFile.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -29,6 +31,10 @@
 		D787B28D22036E18004F2BED /* RNAudioRecorderViewManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = RNAudioRecorderViewManager.m; sourceTree = "<group>"; };
 		D787B2BC220388CA004F2BED /* RNAudioRecorderView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RNAudioRecorderView.h; sourceTree = "<group>"; };
 		D787B2BD220388CA004F2BED /* RNAudioRecorderView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = RNAudioRecorderView.m; sourceTree = "<group>"; };
+		D7EA7B202204CF510050A84D /* WaveFormView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = WaveFormView.h; sourceTree = "<group>"; };
+		D7EA7B212204CF510050A84D /* WaveFormView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = WaveFormView.m; sourceTree = "<group>"; };
+		D7EA7B23220519430050A84D /* SoundFile.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SoundFile.h; sourceTree = "<group>"; };
+		D7EA7B24220519430050A84D /* SoundFile.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SoundFile.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -53,6 +59,10 @@
 		58B511D21A9E6C8500147676 = {
 			isa = PBXGroup;
 			children = (
+				D7EA7B23220519430050A84D /* SoundFile.h */,
+				D7EA7B24220519430050A84D /* SoundFile.m */,
+				D7EA7B202204CF510050A84D /* WaveFormView.h */,
+				D7EA7B212204CF510050A84D /* WaveFormView.m */,
 				D787B2BC220388CA004F2BED /* RNAudioRecorderView.h */,
 				D787B2BD220388CA004F2BED /* RNAudioRecorderView.m */,
 				D787B28C22036E18004F2BED /* RNAudioRecorderViewManager.h */,
@@ -120,6 +130,8 @@
 			files = (
 				D787B28E22036E18004F2BED /* RNAudioRecorderViewManager.m in Sources */,
 				D787B2BE220388CA004F2BED /* RNAudioRecorderView.m in Sources */,
+				D7EA7B222204CF510050A84D /* WaveFormView.m in Sources */,
+				D7EA7B25220519430050A84D /* SoundFile.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
