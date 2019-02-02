@@ -36,7 +36,7 @@ RCT_EXPORT_MODULE()
 RCT_CUSTOM_VIEW_PROPERTY(pixelsPerSecond, NSInteger, RNAudioRecorderView)
 {
     NSInteger pixelsPerSecond = [RCTConvert NSInteger:json];
-    [view setPixelsPerSecond:50];
+    [view setPixelsPerSecond:pixelsPerSecond];
 }
 
 RCT_CUSTOM_VIEW_PROPERTY(plotLineColor, UIColor, RNAudioRecorderView)

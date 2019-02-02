@@ -7,9 +7,14 @@
 //
 
 #import <Foundation/Foundation.h>
+#import <AVFoundation/AVFoundation.h>
 #import <AudioToolbox/AudioToolbox.h>
 
 #define kNumberRecordBuffers    3
+#define kBufferDurationSeconds .5
+
+#define kNotificationRecordingUpdate @"notificationrecording"
+#define kNotificationPlayingUpdate @"notificationplaying"
 
 typedef enum : NSUInteger {
     IsNone = 0,
@@ -19,15 +24,16 @@ typedef enum : NSUInteger {
     IsWriting
 } FileStatus;
 
-@interface SoundFile : NSObject
-{
-    
-    AudioQueueRef       mQueue;
-    AudioQueueBufferRef mBuffers[kNumberRecordBuffers];
-    AudioFileID         mRecordFile;
+@interface SoundFile : NSObject {    
+    @public AudioFileID mRecordFile;
+    @public SInt64      mRecordPacket;
 }
 
-@property(nonatomic) BOOL isNew;
+@property(nonatomic)        BOOL isInitialized;
+@property(atomic, strong)   NSMutableArray *plotArray;
+@property(nonatomic)        NSInteger samplesPerPixel;
+@property(nonatomic, strong) AudioStreamBasicDescription audioFormat;
+
 @property(nonatomic) FileStatus fileStatus;
 
 - (instancetype)initWithFilePath:(NSString *) filename
@@ -35,9 +41,10 @@ typedef enum : NSUInteger {
                         fromInMs:(NSInteger) fromInMs
                           toInMs:(NSInteger) toInMs;
 
-- (void) startRecord(NSInteger startTime);
-- (void) stopRecord();
-- (void) play();
-- (void) stopPlay();
+- (void) buildPlotFromBuffer:(AudioQueueBufferRef) bufferRef;
+- (void) startRecord:(NSInteger) startTime;
+- (void) stopRecord;
+- (void) play;
+- (void) stopPlay;
 
 @end

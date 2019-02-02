@@ -10,7 +10,7 @@
 		D787B28E22036E18004F2BED /* RNAudioRecorderViewManager.m in Sources */ = {isa = PBXBuildFile; fileRef = D787B28D22036E18004F2BED /* RNAudioRecorderViewManager.m */; };
 		D787B2BE220388CA004F2BED /* RNAudioRecorderView.m in Sources */ = {isa = PBXBuildFile; fileRef = D787B2BD220388CA004F2BED /* RNAudioRecorderView.m */; };
 		D7EA7B222204CF510050A84D /* WaveFormView.m in Sources */ = {isa = PBXBuildFile; fileRef = D7EA7B212204CF510050A84D /* WaveFormView.m */; };
-		D7EA7B25220519430050A84D /* SoundFile.m in Sources */ = {isa = PBXBuildFile; fileRef = D7EA7B24220519430050A84D /* SoundFile.m */; };
+		D7EA7B25220519430050A84D /* SoundFile.mm in Sources */ = {isa = PBXBuildFile; fileRef = D7EA7B24220519430050A84D /* SoundFile.mm */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -34,7 +34,7 @@
 		D7EA7B202204CF510050A84D /* WaveFormView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = WaveFormView.h; sourceTree = "<group>"; };
 		D7EA7B212204CF510050A84D /* WaveFormView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = WaveFormView.m; sourceTree = "<group>"; };
 		D7EA7B23220519430050A84D /* SoundFile.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SoundFile.h; sourceTree = "<group>"; };
-		D7EA7B24220519430050A84D /* SoundFile.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SoundFile.m; sourceTree = "<group>"; };
+		D7EA7B24220519430050A84D /* SoundFile.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = SoundFile.mm; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -60,7 +60,7 @@
 			isa = PBXGroup;
 			children = (
 				D7EA7B23220519430050A84D /* SoundFile.h */,
-				D7EA7B24220519430050A84D /* SoundFile.m */,
+				D7EA7B24220519430050A84D /* SoundFile.mm */,
 				D7EA7B202204CF510050A84D /* WaveFormView.h */,
 				D7EA7B212204CF510050A84D /* WaveFormView.m */,
 				D787B2BC220388CA004F2BED /* RNAudioRecorderView.h */,
@@ -131,7 +131,7 @@
 				D787B28E22036E18004F2BED /* RNAudioRecorderViewManager.m in Sources */,
 				D787B2BE220388CA004F2BED /* RNAudioRecorderView.m in Sources */,
 				D7EA7B222204CF510050A84D /* WaveFormView.m in Sources */,
-				D7EA7B25220519430050A84D /* SoundFile.m in Sources */,
+				D7EA7B25220519430050A84D /* SoundFile.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

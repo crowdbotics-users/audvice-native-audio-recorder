@@ -8,7 +8,15 @@
 
 #import "WaveFormView.h"
 
+@interface WaveFormView () {
+    NSInteger mSamplesPerPixel;
+    NSInteger mSampleRate;
+}
+
+@end
+
 @implementation WaveFormView
+@synthesize soundFile = _soundFile;
 
 - (id)initWithFrame:(CGRect)frame
 {
@@ -18,15 +26,27 @@
         _plotLineColor = [UIColor whiteColor];
         _timeTextSize = 12;
         _timeTextColor = [UIColor whiteColor];
-        _pixelsPerSecond = 50;
+        mSamplesPerPixel = 100;
+        mSampleRate  = 14400;
         self.opaque = NO;
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(recordUpdated) name:kNotificationRecordingUpdate object:nil];
     }
     return self;
 }
 
+- (void) setSoundFile:(SoundFile *)soundFile {
+    _soundFile = soundFile;
+    mSamplesPerPixel = _soundFile.samplesPerPixel;
+    mSampleRate = _soundFile.audioFormat.mSampleRate;
+}
+
+- (void) recordUpdated {
+    [self setNeedsDisplay];
+}
+
 // Only override drawRect: if you perform custom drawing.
 // An empty implementation adversely affects performance during animation.
-- (void)drawRect:(CGRect)rect {
+- (void) drawRect:(CGRect)rect {
     // Drawing code
     CGContextRef c = UIGraphicsGetCurrentContext();
     CGContextSetLineWidth(c, 1);
@@ -61,15 +81,15 @@
     // Draw strings
     CGFloat startPoint = midX - _offset;
     int startSec = 0;
-    startSec = -(startPoint) / _pixelsPerSecond;
+    startSec = -(startPoint) * mSamplesPerPixel / mSampleRate;
     startSec = MAX(0, startSec);
-    CGFloat drawPoint = midX - _offset + startSec * _pixelsPerSecond;
+    CGFloat drawPoint = midX - _offset + startSec * mSampleRate / mSamplesPerPixel;
     while (drawPoint < maxX) {
         NSString *drawTime = [self makeShowTimeFromS:startSec];
         [drawTime drawAtPoint:CGPointMake(drawPoint - timeDrawOffset, 0) withAttributes:attribute];
         
         startSec++;
-        drawPoint += _pixelsPerSecond;
+        drawPoint += mSampleRate / mSamplesPerPixel;
     }
 }
 

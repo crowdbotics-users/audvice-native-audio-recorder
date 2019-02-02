@@ -7,16 +7,17 @@
 //
 
 #import <UIKit/UIKit.h>
+#import "SoundFile.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
 @interface WaveFormView : UIView
 
-@property (nonatomic) NSInteger pixelsPerSecond;
-@property (strong, nonatomic) UIColor *timeTextColor;
-@property (nonatomic) NSInteger timeTextSize;
-@property (strong, nonatomic) UIColor *plotLineColor;
-@property (atomic) NSInteger offset;
+@property (weak, nonatomic)     SoundFile *soundFile;
+@property (strong, nonatomic)   UIColor *timeTextColor;
+@property (nonatomic)           NSInteger timeTextSize;
+@property (strong, nonatomic)   UIColor *plotLineColor;
+@property (atomic)              NSInteger offset;
 
 @end
 

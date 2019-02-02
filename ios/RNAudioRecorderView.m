@@ -59,34 +59,43 @@
 
 - (void) initialize:(NSString *) filepath offset:(NSInteger) offset {
     [self destroy];
-    waveform.pixelsPerSecond = _pixelsPerSecond;
     soundFile = [[SoundFile alloc] initWithFilePath:filepath pixelsPerSec:_pixelsPerSecond fromInMs:offset toInMs:-1];
+    waveform.soundFile = soundFile;
 }
 - (NSString*) renderByFile:(NSString*) filepath {
     [self destroy];
-    waveform.pixelsPerSecond = _pixelsPerSecond;
     soundFile = [[SoundFile alloc] initWithFilePath:filepath pixelsPerSec:_pixelsPerSecond fromInMs:-1 toInMs:-1];
-    if ([soundFile isNew]) {
+    if (![soundFile isInitialized]) {
+        soundFile = nil;
         return nil;
     }
+    waveform.soundFile = soundFile;
     return @"";
 }
 - (NSString*) cut:(NSString*) filepath fromTimeInMs:(long) fromTime toTimeInMs:(long) toTime {
     [self destroy];
-    waveform.pixelsPerSecond = _pixelsPerSecond;
     soundFile = [[SoundFile alloc] initWithFilePath:filepath pixelsPerSec:_pixelsPerSecond fromInMs:-1 toInMs:-1];
-    if ([soundFile isNew]) {
+    if (![soundFile isInitialized]) {
+        soundFile = nil;
         return nil;
     }
+    waveform.soundFile = soundFile;
     return @"";
 }
 - (void) destroy {
     
 }
 - (void) startRecording {
-    
+    if (soundFile == nil)
+        return;
+    if ([soundFile fileStatus] == IsRecording) {
+        [soundFile stopRecord];
+    } else if ([soundFile fileStatus] == IsNone) {
+        [soundFile startRecord:0];
+    }
 }
 - (NSString*) stopRecording {
+    
     return @"";
 }
 - (void) play {
