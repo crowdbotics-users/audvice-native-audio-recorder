@@ -61,15 +61,19 @@
     [self destroy];
     soundFile = [[SoundFile alloc] initWithFilePath:filepath pixelsPerSec:_pixelsPerSecond fromInMs:offset toInMs:-1];
     waveform.soundFile = soundFile;
+    [waveform setNeedsDisplay];
 }
 - (NSString*) renderByFile:(NSString*) filepath {
     [self destroy];
     soundFile = [[SoundFile alloc] initWithFilePath:filepath pixelsPerSec:_pixelsPerSecond fromInMs:-1 toInMs:-1];
     if (![soundFile isInitialized]) {
         soundFile = nil;
+        waveform.soundFile = nil;
+        [waveform setNeedsDisplay];
         return nil;
     }
     waveform.soundFile = soundFile;
+    [waveform setNeedsDisplay];
     return @"";
 }
 - (NSString*) cut:(NSString*) filepath fromTimeInMs:(long) fromTime toTimeInMs:(long) toTime {
@@ -77,9 +81,12 @@
     soundFile = [[SoundFile alloc] initWithFilePath:filepath pixelsPerSec:_pixelsPerSecond fromInMs:-1 toInMs:-1];
     if (![soundFile isInitialized]) {
         soundFile = nil;
+        waveform.soundFile = nil;
+        [waveform setNeedsDisplay];
         return nil;
     }
     waveform.soundFile = soundFile;
+    [waveform setNeedsDisplay];
     return @"";
 }
 - (void) destroy {

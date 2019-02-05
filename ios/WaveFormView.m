@@ -11,12 +11,14 @@
 @interface WaveFormView () {
     NSInteger mSamplesPerPixel;
     NSInteger mSampleRate;
+    UIPanGestureRecognizer *panGesture;
 }
 
 @end
 
 @implementation WaveFormView
 @synthesize soundFile = _soundFile;
+@synthesize offset = _offset;
 
 - (id)initWithFrame:(CGRect)frame
 {
@@ -26,22 +28,46 @@
         _plotLineColor = [UIColor whiteColor];
         _timeTextSize = 12;
         _timeTextColor = [UIColor whiteColor];
-        mSamplesPerPixel = 100;
+        mSamplesPerPixel = 200;
         mSampleRate  = 14400;
         self.opaque = NO;
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(recordUpdated) name:kNotificationRecordingUpdate object:nil];
+        panGesture = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(onPanGestureRecognize:)];
+        panGesture.minimumNumberOfTouches = 1;
+        panGesture.maximumNumberOfTouches = 1;
+        [self addGestureRecognizer:panGesture];
     }
     return self;
+}
+
+- (void) onPanGestureRecognize:(UIPanGestureRecognizer*) gesture {
+    CGPoint translation = [gesture translationInView:self];
+    [self setOffset:[self offset] - translation.x];
+    [gesture setTranslation:CGPointZero inView:self];
+}
+
+- (void) setOffset:(NSInteger)offset {
+    if (_soundFile) {
+        _offset = MAX(0, offset);
+        _offset = MIN(_soundFile.plotArray.count, _offset);
+    } else {
+        _offset = 0;
+    }
+    [self setNeedsDisplay];
 }
 
 - (void) setSoundFile:(SoundFile *)soundFile {
     _soundFile = soundFile;
     mSamplesPerPixel = _soundFile.samplesPerPixel;
     mSampleRate = _soundFile.audioFormat.mSampleRate;
+    _offset = 0;
 }
 
 - (void) recordUpdated {
-    [self setNeedsDisplay];
+    _offset = _soundFile.plotArray.count;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self setNeedsDisplay];
+    });
 }
 
 // Only override drawRect: if you perform custom drawing.
@@ -68,7 +94,20 @@
     CGContextStrokePath(c);
     
     // draw plot
-    
+    if (_soundFile) {
+        for (NSInteger drawX = 0; drawX < CGRectGetWidth(rect); drawX++) {
+            int plotIndex = drawX - midX + _offset;
+            if (plotIndex < 0 ||
+                plotIndex >= _soundFile.plotArray.count) {
+                continue;
+            }
+            NSNumber *gain = _soundFile.plotArray[plotIndex];
+            CGFloat height = midY * gain.integerValue / SHRT_MAX;
+            CGPoint line[2] = {CGPointMake(drawX, midY - height), CGPointMake(drawX, midY + height)};
+            CGContextAddLines(c, line, 2);
+        }
+    }
+    CGContextStrokePath(c);
     
     // Draw Timeline
     // config with setting

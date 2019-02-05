@@ -11,7 +11,7 @@
 #import <AudioToolbox/AudioToolbox.h>
 
 #define kNumberRecordBuffers    3
-#define kBufferDurationSeconds .5
+#define kBufferDurationSeconds .1
 
 #define kNotificationRecordingUpdate @"notificationrecording"
 #define kNotificationPlayingUpdate @"notificationplaying"
@@ -32,7 +32,7 @@ typedef enum : NSUInteger {
 @property(nonatomic)        BOOL isInitialized;
 @property(atomic, strong)   NSMutableArray *plotArray;
 @property(nonatomic)        NSInteger samplesPerPixel;
-@property(nonatomic, strong) AudioStreamBasicDescription audioFormat;
+@property(nonatomic) AudioStreamBasicDescription audioFormat;
 
 @property(nonatomic) FileStatus fileStatus;
 

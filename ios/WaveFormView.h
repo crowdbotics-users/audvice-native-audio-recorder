@@ -17,7 +17,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (strong, nonatomic)   UIColor *timeTextColor;
 @property (nonatomic)           NSInteger timeTextSize;
 @property (strong, nonatomic)   UIColor *plotLineColor;
-@property (atomic)              NSInteger offset;
+@property (nonatomic)              NSInteger offset;
 
 @end
 

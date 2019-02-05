@@ -92,12 +92,13 @@ void MyInputBufferHandler(void *                                inUserData,
     for (int i = 0; i < bufferRef->mAudioDataByteSize / 2; i++) {
         plotValue = MAX(plotValue, ABS(audioData[i]));
         chunkIndex++;
-        if (chunkIndex >= mPixelsPerSec) {
+        if (chunkIndex >= _samplesPerPixel) {
             [_plotArray addObject:[NSNumber numberWithInt:plotValue]];
             chunkIndex = 0;
             plotValue = 0;
         }
     }
+    NSLog(@"current packet: %ld, %d, %lu", (long)mPixelsPerSec, bufferRef->mAudioDataByteSize, (unsigned long)_plotArray.count);
     [[NSNotificationCenter defaultCenter] postNotificationName:kNotificationRecordingUpdate object:nil];
 }
 
