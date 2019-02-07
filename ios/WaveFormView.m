@@ -12,6 +12,9 @@
     NSInteger mSamplesPerPixel;
     NSInteger mSampleRate;
     UIPanGestureRecognizer *panGesture;
+    double mPlayStartTime;
+    NSTimer *playTimer;
+    NSInteger mStartOffset;
 }
 
 @end
@@ -31,13 +34,22 @@
         mSamplesPerPixel = 200;
         mSampleRate  = 14400;
         self.opaque = NO;
-        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(recordUpdated) name:kNotificationRecordingUpdate object:nil];
+        
+        // link notification
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(recordUpdated:) name:kNotificationRecordingUpdate object:nil];
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(playUpdated:) name:kNotificationPlayingUpdate object:nil];
+        
         panGesture = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(onPanGestureRecognize:)];
         panGesture.minimumNumberOfTouches = 1;
         panGesture.maximumNumberOfTouches = 1;
         [self addGestureRecognizer:panGesture];
     }
     return self;
+}
+
+- (void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:kNotificationRecordingUpdate object:nil];
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:kNotificationPlayingUpdate object:nil];
 }
 
 - (void) onPanGestureRecognize:(UIPanGestureRecognizer*) gesture {
@@ -63,12 +75,31 @@
     _offset = 0;
 }
 
-- (void) recordUpdated {
-    _offset = _soundFile.plotArray.count;
+- (void) recordUpdated:(NSNotification *) notification {
+    _offset = [notification.object integerValue];
     dispatch_async(dispatch_get_main_queue(), ^{
         [self setNeedsDisplay];
     });
 }
+
+- (void) playUpdated:(NSNotification *) notification {
+    if ([notification.object boolValue]) {
+        mPlayStartTime = CACurrentMediaTime() - 0.25;
+        mStartOffset = _offset;
+        playTimer = [NSTimer scheduledTimerWithTimeInterval:0.1 repeats:true block:^(NSTimer * _Nonnull timer) {
+            [self setOffset:self->mStartOffset + (CACurrentMediaTime() - self->mPlayStartTime) * self->mSampleRate / self->mSamplesPerPixel];
+        }];
+    } else {
+        [playTimer invalidate];
+    }
+//    SInt64 sampleNum = [_soundFile currentPlayPacket];
+//    _offset = sampleNum / mSamplesPerPixel;
+//    dispatch_async(dispatch_get_main_queue(), ^{
+//        [self setNeedsDisplay];
+//    });
+}
+
+
 
 // Only override drawRect: if you perform custom drawing.
 // An empty implementation adversely affects performance during animation.

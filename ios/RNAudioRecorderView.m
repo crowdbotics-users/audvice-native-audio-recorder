@@ -98,7 +98,9 @@
     if ([soundFile fileStatus] == IsRecording) {
         [soundFile stopRecord];
     } else if ([soundFile fileStatus] == IsNone) {
-        [soundFile startRecord:0];
+        NSInteger offset = [waveform offset];
+        NSInteger samples = offset * soundFile.samplesPerPixel;
+        [soundFile startRecord:samples];
     }
 }
 - (NSString*) stopRecording {
@@ -106,6 +108,15 @@
     return @"";
 }
 - (void) play {
+    if (soundFile == nil)
+        return;
+    if ([soundFile fileStatus] == IsPlaying) {
+        [soundFile stopPlay];
+    } else if ([soundFile fileStatus] == IsNone) {
+        NSInteger offset = [waveform offset];
+        NSInteger samples = offset * soundFile.samplesPerPixel;
+        [soundFile play:samples];
+    }
     
 }
 - (long) getDuration {

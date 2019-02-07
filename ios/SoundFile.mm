@@ -23,6 +23,46 @@ void MyInputBufferHandler(void *                                inUserData,
     AudioQueueEnqueueBuffer(inAQ, inBuffer, 0, NULL);
 }
 
+void AQBufferCallback(void * inUserData,
+                          AudioQueueRef inAQ,
+                          AudioQueueBufferRef inBuffer) {
+    SoundFile *sf = (__bridge SoundFile*) inUserData;
+    
+    if (sf->mIsDone) return;
+    UInt32 numBytes;
+    UInt32 nPackets = sf->mNumPacketsToRead;
+    OSStatus result = AudioFileReadPacketData(sf->mRecordFile, false, &numBytes, inBuffer->mPacketDescriptions, sf->mCurrentReadPacket, &nPackets, inBuffer->mAudioData);
+    if (result)
+        printf("AudioFileReadPackets failed: %d", (int)result);
+    if (nPackets > 0) {
+        inBuffer->mAudioDataByteSize = numBytes;
+        inBuffer->mPacketDescriptionCount = nPackets;
+        AudioQueueEnqueueBuffer(inAQ, inBuffer, 0, NULL);
+        [sf setCurrentPlayPacket:sf->mCurrentReadPacket + nPackets];
+    }
+    
+    else
+    {
+        sf->mIsDone = true;
+        [sf setFileStatus:IsNone];
+        AudioQueueStop(inAQ, false);
+    }
+}
+
+void isRunningProc (  void *              inUserData,
+                              AudioQueueRef           inAQ,
+                              AudioQueuePropertyID    inID)
+{
+    SoundFile *sf = (__bridge SoundFile*) inUserData;
+    UInt32 isRunning = 0;
+    UInt32 size = sizeof(isRunning);
+    
+    OSStatus result = AudioQueueGetProperty (inAQ, kAudioQueueProperty_IsRunning, &isRunning, &size);
+    
+    if (result == noErr)
+        [[NSNotificationCenter defaultCenter] postNotificationName: kNotificationPlayingUpdate object: [NSNumber numberWithBool:isRunning]];
+}
+
 @interface SoundFile ()
 {
     AudioQueueRef       mQueue;
@@ -30,8 +70,9 @@ void MyInputBufferHandler(void *                                inUserData,
     NSString *          mTempFilePath;
     NSInteger           mPixelsPerSec;
     
-    int chunkIndex;
+    NSInteger chunkIndex;
     int plotValue;
+    NSInteger plotIndex;
 }
 
 @end
@@ -56,6 +97,8 @@ void MyInputBufferHandler(void *                                inUserData,
         chunkIndex = 0;
         plotValue = 0;
         mPixelsPerSec = pixelsPerSec;
+        mNumPacketsToRead = 0;
+        mIsDone = false;
         _samplesPerPixel = _audioFormat.mSampleRate / mPixelsPerSec;
     }
     return self;
@@ -93,16 +136,29 @@ void MyInputBufferHandler(void *                                inUserData,
         plotValue = MAX(plotValue, ABS(audioData[i]));
         chunkIndex++;
         if (chunkIndex >= _samplesPerPixel) {
-            [_plotArray addObject:[NSNumber numberWithInt:plotValue]];
+            if (plotIndex < _plotArray.count) {
+                [_plotArray replaceObjectAtIndex:plotIndex withObject:[NSNumber numberWithInt:plotValue]];
+            } else {
+                [_plotArray addObject:[NSNumber numberWithInt:plotValue]];
+            }
+            plotIndex++;
             chunkIndex = 0;
             plotValue = 0;
         }
     }
-    NSLog(@"current packet: %ld, %d, %lu", (long)mPixelsPerSec, bufferRef->mAudioDataByteSize, (unsigned long)_plotArray.count);
-    [[NSNotificationCenter defaultCenter] postNotificationName:kNotificationRecordingUpdate object:nil];
+    [[NSNotificationCenter defaultCenter] postNotificationName:kNotificationRecordingUpdate object:[NSNumber numberWithInteger:plotIndex]];
 }
 
-- (void) startRecord: (NSInteger) startTime {
+- (void) setCurrentPlayPacket:(SInt64) currentPacket {
+    mCurrentReadPacket = currentPacket;
+//    [[NSNotificationCenter defaultCenter] postNotificationName:kNotificationPlayingUpdate object:nil];
+}
+
+- (SInt64) currentPlayPacket {
+    return mCurrentReadPacket;    
+}
+
+- (void) startRecord: (NSInteger) samples {
     if (_fileStatus == IsPlaying) {
         [self stopPlay];
     } else if (_fileStatus != IsNone) {
@@ -113,7 +169,14 @@ void MyInputBufferHandler(void *                                inUserData,
         [self prepareRecordingWithNewFile];
     }
     int i, bufferByteSize;
-    mRecordPacket = 0;
+    mRecordPacket = samples;
+    plotIndex = samples / _samplesPerPixel;
+    chunkIndex = samples % _samplesPerPixel;
+    if (plotIndex < _plotArray.count) {
+        plotValue = [_plotArray[plotIndex] intValue];
+    } else {
+        plotValue = 0;
+    }
     OSStatus status = AudioQueueNewInput(&_audioFormat, MyInputBufferHandler, (__bridge void*)self, NULL, NULL, 0, &mQueue);
     [self copyEncoderCookieToFile];
     bufferByteSize = [self computeRecordBufferSize:&_audioFormat seconds:kBufferDurationSeconds];
@@ -137,12 +200,69 @@ void MyInputBufferHandler(void *                                inUserData,
     _fileStatus = IsNone;
 }
 
-- (void) play {
+- (void) play:(NSInteger) startSamples {
     _fileStatus = IsPlaying;
+    mIsDone = false;
+    AudioQueueNewOutput(&_audioFormat, AQBufferCallback, (__bridge void*)self, CFRunLoopGetCurrent(), kCFRunLoopCommonModes, 0, &mQueue);
+    UInt32 bufferByteSize;
+    // we need to calculate how many packets we read at a time, and how big a buffer we need
+    // we base this on the size of the packets in the file and an approximate duration for each buffer
+    // first check to see what the max size of a packet is - if it is bigger
+    // than our allocation default size, that needs to become larger
+    UInt32 maxPacketSize;
+    UInt32 size = sizeof(maxPacketSize);
+    AudioFileGetProperty(mRecordFile, kAudioFilePropertyPacketSizeUpperBound, &size, &maxPacketSize);
+    
+    // adjust buffer size to represent about a half second of audio based on this format
+    [self calculateBytesForTime:_audioFormat inMaxPacketSize:maxPacketSize inSeconds:kBufferDurationSeconds outBufferSize:&bufferByteSize outNumPackets:&mNumPacketsToRead];
+    
+    //printf ("Buffer Byte Size: %d, Num Packets to Read: %d\n", (int)bufferByteSize, (int)mNumPacketsToRead);
+    
+    // (2) If the file has a cookie, we should get it and set it on the AQ
+    size = sizeof(UInt32);
+    OSStatus result = AudioFileGetPropertyInfo (mRecordFile, kAudioFilePropertyMagicCookieData, &size, NULL);
+    
+    if (!result && size) {
+        char* cookie = new char [size];
+        AudioFileGetProperty (mRecordFile, kAudioFilePropertyMagicCookieData, &size, cookie);
+        AudioQueueSetProperty(mQueue, kAudioQueueProperty_MagicCookie, cookie, size);
+        delete [] cookie;
+    }
+    
+    // channel layout?
+    result = AudioFileGetPropertyInfo(mRecordFile, kAudioFilePropertyChannelLayout, &size, NULL);
+    if (result == noErr && size > 0) {
+        AudioChannelLayout *acl = (AudioChannelLayout *)malloc(size);
+        
+        result = AudioFileGetProperty(mRecordFile, kAudioFilePropertyChannelLayout, &size, acl);
+        
+        result = AudioQueueSetProperty(mQueue, kAudioQueueProperty_ChannelLayout, acl, size);
+        
+        free(acl);
+    }
+    
+    AudioQueueAddPropertyListener(mQueue, kAudioQueueProperty_IsRunning, isRunningProc, (__bridge void*)self);
+    
+    bool isFormatVBR = (_audioFormat.mBytesPerPacket == 0 || _audioFormat.mFramesPerPacket == 0);
+    for (int i = 0; i < kNumberRecordBuffers; ++i) {
+        AudioQueueAllocateBufferWithPacketDescriptions(mQueue, bufferByteSize, (isFormatVBR ? mNumPacketsToRead : 0), &mBuffers[i]);
+    }
+    
+    // set the volume of the queue
+    AudioQueueSetParameter(mQueue, kAudioQueueParam_Volume, 1.0);
+    
+    mCurrentReadPacket = startSamples;
+    
+    
+    for (int i = 0; i < kNumberRecordBuffers; ++i) {
+        AQBufferCallback((__bridge void*)self, mQueue, mBuffers[i]);
+    }
+    AudioQueueStart(mQueue, NULL);
 }
 
 - (void) stopPlay {
     _fileStatus = IsNone;
+    AudioQueueStop(mQueue, true);
 }
 
 - (int) computeRecordBufferSize:(AudioStreamBasicDescription *) format seconds:(float) seconds {
@@ -169,6 +289,34 @@ void MyInputBufferHandler(void *                                inUserData,
         bytes = packets * maxPacketSize;
     }
     return bytes;
+}
+
+- (void) calculateBytesForTime:(AudioStreamBasicDescription) inDesc inMaxPacketSize:(UInt32)inMaxPacketSize
+                     inSeconds:(Float64) inSeconds outBufferSize:(UInt32*) outBufferSize outNumPackets:(UInt32*) outNumPackets {
+    // we only use time here as a guideline
+    // we're really trying to get somewhere between 16K and 64K buffers, but not allocate too much if we don't need it
+    static const int maxBufferSize = 0x10000; // limit size to 64K
+    static const int minBufferSize = 0x4000; // limit size to 16K
+    
+    if (inDesc.mFramesPerPacket) {
+        Float64 numPacketsForTime = inDesc.mSampleRate / inDesc.mFramesPerPacket * inSeconds;
+        *outBufferSize = numPacketsForTime * inMaxPacketSize;
+    } else {
+        // if frames per packet is zero, then the codec has no predictable packet == time
+        // so we can't tailor this (we don't know how many Packets represent a time period
+        // we'll just return a default buffer size
+        *outBufferSize = maxBufferSize > inMaxPacketSize ? maxBufferSize : inMaxPacketSize;
+    }
+    
+    // we're going to limit our size to our default
+    if (*outBufferSize > maxBufferSize && *outBufferSize > inMaxPacketSize)
+        *outBufferSize = maxBufferSize;
+    else {
+        // also make sure we're not too small - we don't want to go the disk for too small chunks
+        if (*outBufferSize < minBufferSize)
+            *outBufferSize = minBufferSize;
+    }
+    *outNumPackets = *outBufferSize / inMaxPacketSize;
 }
 
 - (void) copyEncoderCookieToFile {

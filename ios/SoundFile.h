@@ -25,8 +25,11 @@ typedef enum : NSUInteger {
 } FileStatus;
 
 @interface SoundFile : NSObject {    
-    @public AudioFileID mRecordFile;
-    @public SInt64      mRecordPacket;
+@public AudioFileID mRecordFile;
+@public SInt64      mRecordPacket;
+@public BOOL        mIsDone;
+@public SInt64      mCurrentReadPacket;
+@public UInt32      mNumPacketsToRead;
 }
 
 @property(nonatomic)        BOOL isInitialized;
@@ -42,9 +45,12 @@ typedef enum : NSUInteger {
                           toInMs:(NSInteger) toInMs;
 
 - (void) buildPlotFromBuffer:(AudioQueueBufferRef) bufferRef;
+- (void) setCurrentPlayPacket:(SInt64) currentPacket;
+- (SInt64) currentPlayPacket;
+
 - (void) startRecord:(NSInteger) startTime;
 - (void) stopRecord;
-- (void) play;
+- (void) play:(NSInteger) startSamples;
 - (void) stopPlay;
 
 @end
