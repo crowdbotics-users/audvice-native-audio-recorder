@@ -87,11 +87,7 @@ void isRunningProc (  void *              inUserData,
 {
     self = [super init];
     if (self) {
-        if ([self openAudioFile:filename]) {
-            _isInitialized = true;
-        } else {
-            [self setupAudioFormat];
-        }
+        [self setupAudioFormat];
         _fileStatus = IsNone;
         _plotArray = [NSMutableArray new];
         chunkIndex = 0;
@@ -100,6 +96,9 @@ void isRunningProc (  void *              inUserData,
         mNumPacketsToRead = 0;
         mIsDone = false;
         _samplesPerPixel = _audioFormat.mSampleRate / mPixelsPerSec;
+        if ([self openAudioFile:filename]) {
+            _isInitialized = true;
+        }
     }
     return self;
 }
@@ -113,20 +112,90 @@ void isRunningProc (  void *              inUserData,
 - (BOOL) openAudioFile:(NSString*) filepath {
     NSString *fullPath = [[SoundFile applicationDocumentsDirectory] stringByAppendingPathComponent:filepath];
     CFURLRef urlRef = (__bridge CFURLRef)[NSURL URLWithString:fullPath];
-    OSStatus status = AudioFileOpenURL(urlRef, kAudioFileReadWritePermission, 0, &mRecordFile);
-    if (status != 0) {
+    ExtAudioFileRef inputFile;
+    if (![self checkError:ExtAudioFileOpenURL(urlRef, &inputFile) withErrorString:@"Audio Source Error"])
+    {
         return false;
     }
-    UInt32 size = sizeof(_audioFormat);
-    status = AudioFileGetProperty(mRecordFile, kAudioFilePropertyDataFormat, &size, &_audioFormat);
+    AudioStreamBasicDescription inputFormat;
+    UInt32 size = sizeof(inputFormat);
     
+    if (![self checkError:ExtAudioFileGetProperty(inputFile, kExtAudioFileProperty_FileDataFormat, &size, &inputFormat) withErrorString:@"Audio Format Error"])
+    {
+        return false;
+    }
+    
+    [self prepareRecordingWithNewFile];
+    
+    size = sizeof(_audioFormat);
+    
+    if (![self checkError:ExtAudioFileSetProperty(inputFile, kExtAudioFileProperty_ClientDataFormat, size, &_audioFormat) withErrorString:@"Cannot set client format on the source"])
+    {
+        return false;
+    }
+    
+    AudioConverterRef converter = 0;
+    size = sizeof(converter);
+    
+    if (![self checkError:ExtAudioFileGetProperty(inputFile, kExtAudioFileProperty_AudioConverter, &size, &converter) withErrorString:@"Failed to get converter"]) {
+        return false;
+    }
+    
+    UInt32 bufferByteSize = 32768;
+    char sourceBuffer[bufferByteSize];
+    
+    /*
+     keep track of the source file offset so we know where to reset the source for
+     reading if interrupted and input was not consumed by the audio converter
+     */
+    SInt64 sourceFrameOffset = 0;
+    SInt64 destBytesOffset = 0;
+    
+    OSStatus error = 0;
+    
+    while (YES) {
+        // Set up output buffer list
+        AudioBufferList fillBufferList = {};
+        fillBufferList.mNumberBuffers = 1;
+        fillBufferList.mBuffers[0].mNumberChannels = _audioFormat.mChannelsPerFrame;
+        fillBufferList.mBuffers[0].mDataByteSize = bufferByteSize;
+        fillBufferList.mBuffers[0].mData = sourceBuffer;
+        
+        /*
+         The client format is always linear PCM - so here we determine how many frames of lpcm
+         we can read/write given our buffer size
+         */
+        UInt32 numberOfFrames = 0;
+        if (_audioFormat.mBytesPerFrame > 0) {
+            // Handles bogus analyzer divide by zero warning mBytesPerFrame can't be a 0 and is protected by an Assert.
+            numberOfFrames = bufferByteSize / _audioFormat.mBytesPerFrame;
+        }
+        
+        if (![self checkError:ExtAudioFileRead(inputFile, &numberOfFrames, &fillBufferList) withErrorString:@"ExtAudioFileRead failed!"]) {
+            return false;
+        }
+        
+        if (!numberOfFrames) {
+            // This is our termination condition.
+            error = noErr;
+            break;
+        }
+        
+        UInt32 numBytes = fillBufferList.mBuffers[0].mDataByteSize;
+        error = AudioFileWriteBytes(mRecordFile, false, destBytesOffset, &numBytes, fillBufferList.mBuffers[0].mData);
+        [self bulidPlotFromBytes:fillBufferList.mBuffers[0].mData size:numBytes];
+        destBytesOffset += numBytes;
+        sourceFrameOffset += numberOfFrames;
+    }
+    if (inputFile) { ExtAudioFileDispose(inputFile); }
+    if (converter) { AudioConverterDispose(converter); }
     return true;
 }
 
 - (void) prepareRecordingWithNewFile {
     mTempFilePath = [self getTempFile];
     CFURLRef urlRef = (__bridge CFURLRef)[NSURL URLWithString:mTempFilePath];
-    OSStatus status = AudioFileCreateWithURL(urlRef, kAudioFileCAFType, &_audioFormat, kAudioFileFlags_EraseFile, &mRecordFile);
+    OSStatus status = AudioFileCreateWithURL(urlRef, kAudioFileWAVEType, &_audioFormat, kAudioFileFlags_EraseFile, &mRecordFile);
     _isInitialized = true;
 }
 
@@ -147,6 +216,24 @@ void isRunningProc (  void *              inUserData,
         }
     }
     [[NSNotificationCenter defaultCenter] postNotificationName:kNotificationRecordingUpdate object:[NSNumber numberWithInteger:plotIndex]];
+}
+
+- (void) bulidPlotFromBytes:(void*) bytes size:(UInt32) size {
+    int16_t *audioData = (int16_t *)bytes;
+    for (int i = 0; i < size / 2; i++) {
+        plotValue = MAX(plotValue, ABS(audioData[i]));
+        chunkIndex++;
+        if (chunkIndex >= _samplesPerPixel) {
+            if (plotIndex < _plotArray.count) {
+                [_plotArray replaceObjectAtIndex:plotIndex withObject:[NSNumber numberWithInt:plotValue]];
+            } else {
+                [_plotArray addObject:[NSNumber numberWithInt:plotValue]];
+            }
+            plotIndex++;
+            chunkIndex = 0;
+            plotValue = 0;
+        }
+    }
 }
 
 - (void) setCurrentPlayPacket:(SInt64) currentPacket {
@@ -343,11 +430,22 @@ void isRunningProc (  void *              inUserData,
     }
 }
 
+- (BOOL)checkError:(OSStatus)error withErrorString:(NSString *)string {
+    if (error == noErr) {
+        return YES;
+    }
+    
+    NSError *err = [NSError errorWithDomain:@"AudioOperation" code:error userInfo:@{NSLocalizedDescriptionKey : string}];
+    NSLog(@"Error: %@", err);
+    
+    return NO;
+}
+
 - (NSString*) getTempFile {
     NSDate *now = [NSDate date];
     NSDateFormatter *simpleFormat = [[NSDateFormatter alloc] init];
     simpleFormat.dateFormat = @"yyyy-mm-dd-HH-MM-SS-zzz";
-    NSString *filename = [NSString stringWithFormat:@"%@.caf", [simpleFormat stringFromDate:now]];
+    NSString *filename = [NSString stringWithFormat:@"%@.wav", [simpleFormat stringFromDate:now]];
     return [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
 }
 

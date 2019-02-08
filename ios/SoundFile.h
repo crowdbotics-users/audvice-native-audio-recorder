@@ -45,6 +45,7 @@ typedef enum : NSUInteger {
                           toInMs:(NSInteger) toInMs;
 
 - (void) buildPlotFromBuffer:(AudioQueueBufferRef) bufferRef;
+- (void) bulidPlotFromBytes:(void*) bytes size:(UInt32) size;
 - (void) setCurrentPlayPacket:(SInt64) currentPacket;
 - (SInt64) currentPlayPacket;
 

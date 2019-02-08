@@ -70,8 +70,10 @@
 
 - (void) setSoundFile:(SoundFile *)soundFile {
     _soundFile = soundFile;
-    mSamplesPerPixel = _soundFile.samplesPerPixel;
-    mSampleRate = _soundFile.audioFormat.mSampleRate;
+    if (_soundFile != nil) {
+        mSamplesPerPixel = _soundFile.samplesPerPixel;
+        mSampleRate = _soundFile.audioFormat.mSampleRate;
+    }    
     _offset = 0;
 }
 
