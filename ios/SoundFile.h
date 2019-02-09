@@ -54,4 +54,7 @@ typedef enum : NSUInteger {
 - (void) play:(NSInteger) startSamples;
 - (void) stopPlay;
 
+- (NSString*) soundFilePath;
+- (NSInteger) duration;
+
 @end

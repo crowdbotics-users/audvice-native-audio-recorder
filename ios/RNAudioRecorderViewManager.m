@@ -109,11 +109,16 @@ RCT_EXPORT_METHOD(cut:(nonnull NSNumber *)reactTag
             RCTLogError(@"Invalid view returned from registry, expecting RNCamera, got: %@", view);
             reject(@"ViewNotFound", @"Cannot Find View", nil);
         } else {
-            NSString* retPath = [view cut:filename fromTimeInMs:fromTime toTimeInMs:toTime];
-            if (retPath) {
-                resolve(retPath);
-            } else {
-                reject(@"InvalidFile", @"Invalid file path", nil);
+            NSString* filePath = [view cut:filename fromTimeInMs:fromTime toTimeInMs:toTime];
+            if (filePath) {
+                long duration = [view getDuration];
+                resolve(@{
+                          @"filepath": filePath,
+                          @"duration": [NSNumber numberWithLong:duration]
+                          }
+                        );
+            }else{
+                reject(@"CutError", @"Invalid File Path", nil);
             }
         }
     }];

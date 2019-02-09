@@ -32,10 +32,25 @@
     return self;
 }
 
+- (void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:UIApplicationDidEnterBackgroundNotification object:nil];
+}
+
 - (void) initView {
     waveform = [[WaveFormView alloc] initWithFrame:self.bounds];
     waveform.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     [self addSubview:waveform];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(appMoveToBackground:) name:UIApplicationDidEnterBackgroundNotification object:nil];
+}
+
+- (void) appMoveToBackground:(NSNotification *) notification {
+    if (soundFile) {
+        if (soundFile.fileStatus == IsPlaying) {
+            [soundFile stopPlay];
+        } else if (soundFile.fileStatus == IsRecording) {
+            [soundFile stopRecord];
+        }
+    }
 }
 
 - (void) setPlotLineColor:(UIColor *)plotLineColor {
@@ -57,11 +72,13 @@
     [super layoutSubviews];
 }
 
-- (void) initialize:(NSString *) filepath offset:(NSInteger) offset {
+- (void) initialize:(NSString *) filepath offset:(NSInteger) offsetInMs {
     [self destroy];
-    soundFile = [[SoundFile alloc] initWithFilePath:filepath pixelsPerSec:_pixelsPerSecond fromInMs:offset toInMs:-1];
+    soundFile = [[SoundFile alloc] initWithFilePath:filepath pixelsPerSec:_pixelsPerSecond fromInMs:-1 toInMs:-1];
     waveform.soundFile = soundFile;
     [waveform setNeedsDisplay];
+    NSInteger offset = offsetInMs / 1000.f * soundFile.audioFormat.mSampleRate / soundFile.samplesPerPixel;
+    [waveform setOffset:offset];
 }
 - (NSString*) renderByFile:(NSString*) filepath {
     [self destroy];
@@ -74,11 +91,11 @@
     }
     waveform.soundFile = soundFile;
     [waveform setNeedsDisplay];
-    return @"";
+    return [soundFile soundFilePath];
 }
 - (NSString*) cut:(NSString*) filepath fromTimeInMs:(long) fromTime toTimeInMs:(long) toTime {
     [self destroy];
-    soundFile = [[SoundFile alloc] initWithFilePath:filepath pixelsPerSec:_pixelsPerSecond fromInMs:-1 toInMs:-1];
+    soundFile = [[SoundFile alloc] initWithFilePath:filepath pixelsPerSec:_pixelsPerSecond fromInMs:fromTime toInMs:toTime];
     if (![soundFile isInitialized]) {
         soundFile = nil;
         waveform.soundFile = nil;
@@ -87,7 +104,7 @@
     }
     waveform.soundFile = soundFile;
     [waveform setNeedsDisplay];
-    return @"";
+    return [soundFile soundFilePath];
 }
 - (void) destroy {
     
@@ -104,7 +121,9 @@
     }
 }
 - (NSString*) stopRecording {
-    
+    if (soundFile) {
+        return [soundFile soundFilePath];
+    }
     return @"";
 }
 - (void) play {

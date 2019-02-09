@@ -96,7 +96,7 @@ void isRunningProc (  void *              inUserData,
         mNumPacketsToRead = 0;
         mIsDone = false;
         _samplesPerPixel = _audioFormat.mSampleRate / mPixelsPerSec;
-        if ([self openAudioFile:filename]) {
+        if ([self openAudioFile:filename fromTimeInMs:fromInMs toTimeInMs:toInMs]) {
             _isInitialized = true;
         }
     }
@@ -109,7 +109,10 @@ void isRunningProc (  void *              inUserData,
     [_plotArray removeAllObjects];
 }
 
-- (BOOL) openAudioFile:(NSString*) filepath {
+- (BOOL) openAudioFile:(NSString*) filepath
+          fromTimeInMs:(NSInteger) fromTms toTimeInMs:(NSInteger) toTms
+{
+    // get information from input file
     NSString *fullPath = [[SoundFile applicationDocumentsDirectory] stringByAppendingPathComponent:filepath];
     CFURLRef urlRef = (__bridge CFURLRef)[NSURL URLWithString:fullPath];
     ExtAudioFileRef inputFile;
@@ -125,6 +128,7 @@ void isRunningProc (  void *              inUserData,
         return false;
     }
     
+    // Prepare Recording File
     [self prepareRecordingWithNewFile];
     
     size = sizeof(_audioFormat);
@@ -134,6 +138,7 @@ void isRunningProc (  void *              inUserData,
         return false;
     }
     
+    // Set Converter to input file
     AudioConverterRef converter = 0;
     size = sizeof(converter);
     
@@ -141,6 +146,7 @@ void isRunningProc (  void *              inUserData,
         return false;
     }
     
+    // Set buffer for reading audio data from input file
     UInt32 bufferByteSize = 32768;
     char sourceBuffer[bufferByteSize];
     
@@ -150,6 +156,24 @@ void isRunningProc (  void *              inUserData,
      */
     SInt64 sourceFrameOffset = 0;
     SInt64 destBytesOffset = 0;
+    SInt64 sourceBytesOffset = 0;
+    
+    // check invalidation
+    SInt64 fromBytes = fromTms / 1000.f * _audioFormat.mSampleRate * 2;
+    SInt64 toBytes = toTms / 1000.f * _audioFormat.mSampleRate * 2;
+    
+    if (toTms != -1) {
+        fromBytes = MAX(0, fromBytes);
+        if (fromTms >= toTms) {
+            fromBytes = INT64_MAX;
+            toBytes = INT64_MAX;
+        }
+    } else if (fromTms != -1) {
+        toBytes = INT64_MAX;
+    } else {
+        fromBytes = INT64_MAX;
+        toBytes = INT64_MAX;
+    }
     
     OSStatus error = 0;
     
@@ -182,9 +206,36 @@ void isRunningProc (  void *              inUserData,
         }
         
         UInt32 numBytes = fillBufferList.mBuffers[0].mDataByteSize;
-        error = AudioFileWriteBytes(mRecordFile, false, destBytesOffset, &numBytes, fillBufferList.mBuffers[0].mData);
-        [self bulidPlotFromBytes:fillBufferList.mBuffers[0].mData size:numBytes];
-        destBytesOffset += numBytes;
+        UInt32 writeBytes = numBytes;
+        // if chunk is fully in cut interval
+        if (sourceBytesOffset < fromBytes) {
+            if (sourceBytesOffset + numBytes > fromBytes) {
+                writeBytes = (UInt32)(fromBytes - sourceBytesOffset);
+                error = AudioFileWriteBytes(mRecordFile, false, destBytesOffset, &writeBytes, fillBufferList.mBuffers[0].mData);
+                [self bulidPlotFromBytes:fillBufferList.mBuffers[0].mData size:writeBytes];
+                destBytesOffset += writeBytes;
+            } else {// chunk is befor fromBytes
+                error = AudioFileWriteBytes(mRecordFile, false, destBytesOffset, &writeBytes, fillBufferList.mBuffers[0].mData);
+                [self bulidPlotFromBytes:fillBufferList.mBuffers[0].mData size:writeBytes];
+                destBytesOffset += writeBytes;
+            }
+        }
+        
+        if (sourceBytesOffset < toBytes) {
+            if (sourceBytesOffset + numBytes > toBytes) {
+                UInt8 *writeData = (UInt8*)fillBufferList.mBuffers[0].mData + (toBytes - sourceBytesOffset);
+                writeBytes = (UInt32)(sourceBytesOffset + numBytes - toBytes);
+                error = AudioFileWriteBytes(mRecordFile, false, destBytesOffset, &writeBytes, (void*)writeData);
+                [self bulidPlotFromBytes:writeData size:writeBytes];
+                destBytesOffset += writeBytes;
+            }
+        } else {// chunk is after toBytes
+            error = AudioFileWriteBytes(mRecordFile, false, destBytesOffset, &writeBytes, fillBufferList.mBuffers[0].mData);
+            [self bulidPlotFromBytes:fillBufferList.mBuffers[0].mData size:writeBytes];
+            destBytesOffset += writeBytes;
+        }
+        
+        sourceBytesOffset += numBytes;
         sourceFrameOffset += numberOfFrames;
     }
     if (inputFile) { ExtAudioFileDispose(inputFile); }
@@ -193,12 +244,23 @@ void isRunningProc (  void *              inUserData,
 }
 
 - (void) prepareRecordingWithNewFile {
+    // Create Temp file in Tmp Directory
     mTempFilePath = [self getTempFile];
     CFURLRef urlRef = (__bridge CFURLRef)[NSURL URLWithString:mTempFilePath];
-    OSStatus status = AudioFileCreateWithURL(urlRef, kAudioFileWAVEType, &_audioFormat, kAudioFileFlags_EraseFile, &mRecordFile);
+    AudioFileCreateWithURL(urlRef, kAudioFileWAVEType, &_audioFormat, kAudioFileFlags_EraseFile, &mRecordFile);
     _isInitialized = true;
 }
 
+- (NSString *)soundFilePath {
+    return mTempFilePath;
+}
+
+- (NSInteger)duration {
+    // TODO:
+    return 0;
+}
+
+// while recording, create waveform
 - (void) buildPlotFromBuffer:(AudioQueueBufferRef) bufferRef {
     int16_t *audioData = (int16_t *)bufferRef->mAudioData;
     for (int i = 0; i < bufferRef->mAudioDataByteSize / 2; i++) {
@@ -218,6 +280,7 @@ void isRunningProc (  void *              inUserData,
     [[NSNotificationCenter defaultCenter] postNotificationName:kNotificationRecordingUpdate object:[NSNumber numberWithInteger:plotIndex]];
 }
 
+// while reading audio file, create waveform
 - (void) bulidPlotFromBytes:(void*) bytes size:(UInt32) size {
     int16_t *audioData = (int16_t *)bytes;
     for (int i = 0; i < size / 2; i++) {
@@ -264,6 +327,8 @@ void isRunningProc (  void *              inUserData,
     } else {
         plotValue = 0;
     }
+    
+    // set input queue
     OSStatus status = AudioQueueNewInput(&_audioFormat, MyInputBufferHandler, (__bridge void*)self, NULL, NULL, 0, &mQueue);
     [self copyEncoderCookieToFile];
     bufferByteSize = [self computeRecordBufferSize:&_audioFormat seconds:kBufferDurationSeconds];
@@ -274,9 +339,6 @@ void isRunningProc (  void *              inUserData,
     
     _fileStatus = IsRecording;
     status = AudioQueueStart(mQueue, NULL);
-    if (status != 0) {
-        
-    }
 }
 
 - (void) stopRecord {
@@ -352,6 +414,7 @@ void isRunningProc (  void *              inUserData,
     AudioQueueStop(mQueue, true);
 }
 
+// computer buffersize for recordign based on record format
 - (int) computeRecordBufferSize:(AudioStreamBasicDescription *) format seconds:(float) seconds {
     int packets, frames, bytes = 0;
     frames = (int)ceil(seconds * format->mSampleRate);
@@ -378,6 +441,7 @@ void isRunningProc (  void *              inUserData,
     return bytes;
 }
 
+// computer buffersize for reading audio file based on input file format
 - (void) calculateBytesForTime:(AudioStreamBasicDescription) inDesc inMaxPacketSize:(UInt32)inMaxPacketSize
                      inSeconds:(Float64) inSeconds outBufferSize:(UInt32*) outBufferSize outNumPackets:(UInt32*) outNumPackets {
     // we only use time here as a guideline
