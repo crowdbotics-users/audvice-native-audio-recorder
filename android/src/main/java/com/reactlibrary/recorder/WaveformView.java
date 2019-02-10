@@ -4,12 +4,9 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.util.AttributeSet;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
-
-import java.util.List;
 
 /**
  * WaveformView is an Android view that displays a visual representation
@@ -82,7 +79,7 @@ public class WaveformView extends View {
 
         mGridPaint = new Paint();
         mGridPaint.setAntiAlias(false);
-        mGridPaint.setColor(Color.TRANSPARENT);// TODO
+        mGridPaint.setColor(Color.TRANSPARENT);
         mPlaybackLinePaint = new Paint();
         mPlaybackLinePaint.setAntiAlias(false);
         mPlaybackLinePaint.setColor(Color.WHITE);
@@ -93,7 +90,6 @@ public class WaveformView extends View {
         mTimecodePaint.setTextSize(mTimeTextSize * mDensity);
         mTimecodePaint.setAntiAlias(true);
         mTimecodePaint.setColor(Color.GREEN);
-        mTimecodePaint.setShadowLayer(2, 1, 1, Color.GREEN);
 
         mGestureDetector = new GestureDetector(
                 context,
@@ -183,6 +179,7 @@ public class WaveformView extends View {
     }
 
     public void setOffset(int offset) {
+        if (mSoundFile == null) return;
         mOffset = Math.max(0, offset);
         mOffset = Math.min(mOffset, mSoundFile.getNumPixels());
         invalidate();
@@ -200,8 +197,9 @@ public class WaveformView extends View {
         return mAutoSeeking;
     }
 
-    public void updateRecording() {
-        setOffset(mSoundFile.getNumPixels());
+    public void updateRecording(float posInS) {
+        setOffset(millisecsToPixels((long)(1000 * posInS)));
+        // setOffset(mSoundFile.getNumPixels());
     }
 
     public void setDensity(float density) {
