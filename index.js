@@ -1,3 +1,4 @@
+
 import React from 'react'
 import {
   NativeModules,
@@ -11,7 +12,7 @@ import {
 } from 'react-native'
 import PropTypes from 'prop-types'
 
-const { RNAudioRecorder } = NativeModules
+const RNAudioRecorder = NativeModules.RNAudioRecorder || NativeModules.RNAudioRecorderViewManager
 const RNAudioRecorderView = requireNativeComponent('RNAudioRecorderView')
 
 export default class AudioRecorder extends React.Component {
