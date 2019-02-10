@@ -256,8 +256,13 @@ void isRunningProc (  void *              inUserData,
 }
 
 - (NSInteger)duration {
-    // TODO:
-    return 0;
+    Float64 outDataSize = 0;
+    UInt32 thePropSize = sizeof(Float64);
+    OSStatus result = AudioFileGetProperty(mRecordFile, kAudioFilePropertyEstimatedDuration, &thePropSize, &outDataSize);
+    if (result) {
+        return 0;
+    }
+    return outDataSize * 1000;
 }
 
 // while recording, create waveform

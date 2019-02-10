@@ -17,7 +17,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property (strong, nonatomic)   UIColor *timeTextColor;
 @property (nonatomic)           NSInteger timeTextSize;
 @property (strong, nonatomic)   UIColor *plotLineColor;
-@property (nonatomic)              NSInteger offset;
+@property (nonatomic)           NSInteger offset;
+@property (nonatomic)           BOOL onScroll;
 
 @end
 

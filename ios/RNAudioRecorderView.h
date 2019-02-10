@@ -25,10 +25,14 @@
 - (void) initialize:(NSString *) filepath offset:(long) offset;
 - (NSString*) renderByFile:(NSString*) filepath;
 - (NSString*) cut:(NSString*) filepath fromTimeInMs:(long) fromTime toTimeInMs:(long) toTime;
+
 - (void) destroy;
+
 - (void) startRecording;
 - (NSString*) stopRecording;
+
 - (void) play;
+
 - (long) getDuration;
 
 @end

@@ -39,6 +39,7 @@
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(recordUpdated:) name:kNotificationRecordingUpdate object:nil];
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(playUpdated:) name:kNotificationPlayingUpdate object:nil];
         
+        // add pan gesutre for scrolling
         panGesture = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(onPanGestureRecognize:)];
         panGesture.minimumNumberOfTouches = 1;
         panGesture.maximumNumberOfTouches = 1;
@@ -52,12 +53,14 @@
     [[NSNotificationCenter defaultCenter] removeObserver:self name:kNotificationPlayingUpdate object:nil];
 }
 
+// scroll event
 - (void) onPanGestureRecognize:(UIPanGestureRecognizer*) gesture {
     CGPoint translation = [gesture translationInView:self];
     [self setOffset:[self offset] - translation.x];
     [gesture setTranslation:CGPointZero inView:self];
 }
 
+// scroll at the point, offset
 - (void) setOffset:(NSInteger)offset {
     if (_soundFile) {
         _offset = MAX(0, offset);
@@ -68,12 +71,13 @@
     [self setNeedsDisplay];
 }
 
+// set sound file
 - (void) setSoundFile:(SoundFile *)soundFile {
     _soundFile = soundFile;
     if (_soundFile != nil) {
         mSamplesPerPixel = _soundFile.samplesPerPixel;
         mSampleRate = _soundFile.audioFormat.mSampleRate;
-    }    
+    }
     _offset = 0;
 }
 
@@ -89,16 +93,14 @@
         mPlayStartTime = CACurrentMediaTime() - 0.25;
         mStartOffset = _offset;
         playTimer = [NSTimer scheduledTimerWithTimeInterval:0.1 repeats:true block:^(NSTimer * _Nonnull timer) {
-            [self setOffset:self->mStartOffset + (CACurrentMediaTime() - self->mPlayStartTime) * self->mSampleRate / self->mSamplesPerPixel];
+            if (self->_onScroll) {
+                [self setOffset:self->mStartOffset + (CACurrentMediaTime() - self->mPlayStartTime) * self->mSampleRate / self->mSamplesPerPixel];
+            }
         }];
     } else {
         [playTimer invalidate];
+        playTimer = nil;
     }
-//    SInt64 sampleNum = [_soundFile currentPlayPacket];
-//    _offset = sampleNum / mSamplesPerPixel;
-//    dispatch_async(dispatch_get_main_queue(), ^{
-//        [self setNeedsDisplay];
-//    });
 }
 
 
