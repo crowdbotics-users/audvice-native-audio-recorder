@@ -53,6 +53,16 @@ On *Android* you need to add a permission to `AndroidManifest.xml`:
 
 ### Permission Check
 Also, android above `Marshmallow` needs runtime permission to record audio. Using [react-native-permissions](https://github.com/yonahforst/react-native-permissions) will help you out with this problem. Below is sample usage before when started the recording.
+
+In iOS, please make sure the project link with react-native-permissions and add following dict in plist file.
+
+```
+  <key>NSAppleMusicUsageDescription</key>
+	<string>$(PRODUCT_NAME) allows to access Media Library</string>
+  <key>NSMicrophoneUsageDescription</key>
+	<string>$(PRODUCT_NAME) uses the microphone to record your voice.</string>
+```
+
 ```javascript
   permissionCheck() {
     if (Platform.OS === 'android') {
