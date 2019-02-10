@@ -162,7 +162,7 @@ RCT_EXPORT_METHOD(stopRecording:(nonnull NSNumber *)reactTag
                           }
                         );
             }else{
-                reject(@"SaveError", @"Cannot Save File to Media Library", nil);
+                reject(@"SaveError", @"Cannot find recorded file", nil);
             }
         }
     }];

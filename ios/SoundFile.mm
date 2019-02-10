@@ -238,11 +238,15 @@ void isRunningProc (  void *              inUserData,
         sourceBytesOffset += numBytes;
         sourceFrameOffset += numberOfFrames;
     }
+    // End convert
+    
+    // free unused objects
     if (inputFile) { ExtAudioFileDispose(inputFile); }
     if (converter) { AudioConverterDispose(converter); }
     return true;
 }
 
+// create tmp audio file and audiofileid
 - (void) prepareRecordingWithNewFile {
     // Create Temp file in Tmp Directory
     mTempFilePath = [self getTempFile];
@@ -255,6 +259,7 @@ void isRunningProc (  void *              inUserData,
     return mTempFilePath;
 }
 
+// get duration of recored file by ms.
 - (NSInteger)duration {
     Float64 outDataSize = 0;
     UInt32 thePropSize = sizeof(Float64);
@@ -510,6 +515,8 @@ void isRunningProc (  void *              inUserData,
     return NO;
 }
 
+// Generate temp file in tmp directory
+//
 - (NSString*) getTempFile {
     NSDate *now = [NSDate date];
     NSDateFormatter *simpleFormat = [[NSDateFormatter alloc] init];
@@ -518,6 +525,9 @@ void isRunningProc (  void *              inUserData,
     return [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
 }
 
+// Setup record audio format
+// All audio should be converted by this format in new tmp directory
+//
 - (void) setupAudioFormat {
     memset(&_audioFormat, 0, sizeof(_audioFormat));
     _audioFormat.mSampleRate = [AVAudioSession sharedInstance].sampleRate;

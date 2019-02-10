@@ -10,7 +10,10 @@
 #import <AVFoundation/AVFoundation.h>
 #import <AudioToolbox/AudioToolbox.h>
 
+// Buffer Size
 #define kNumberRecordBuffers    3
+
+// Update Time Interval for playing and recording
 #define kBufferDurationSeconds .1
 
 #define kNotificationRecordingUpdate @"notificationrecording"

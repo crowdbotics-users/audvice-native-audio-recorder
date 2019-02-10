@@ -114,6 +114,7 @@
     [waveform setNeedsDisplay];
     return [soundFile soundFilePath];
 }
+
 - (NSString*) cut:(NSString*) filepath fromTimeInMs:(long) fromTime toTimeInMs:(long) toTime {
     [self destroy];
     soundFile = [[SoundFile alloc] initWithFilePath:filepath pixelsPerSec:_pixelsPerSecond fromInMs:fromTime toInMs:toTime];
@@ -171,7 +172,6 @@
     }
     
 }
-
 
 - (long) getDuration {
     if (soundFile) {
