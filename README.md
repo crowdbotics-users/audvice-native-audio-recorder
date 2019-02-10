@@ -42,6 +42,8 @@ On *iOS* you need to add a usage description to `Info.plist`:
 <string>This sample uses the microphone to record your speech and convert it to text.</string>
 ```
 
+Add *AudioToolbox.framework* in project setting
+
 On *Android* you need to add a permission to `AndroidManifest.xml`:
 
 ```xml
@@ -52,16 +54,17 @@ On *Android* you need to add a permission to `AndroidManifest.xml`:
 ### Permission Check
 Also, android above `Marshmallow` needs runtime permission to record audio. Using [react-native-permissions](https://github.com/yonahforst/react-native-permissions) will help you out with this problem. Below is sample usage before when started the recording.
 ```javascript
-	if (Platform.OS === 'android') {
+  permissionCheck() {
+    if (Platform.OS === 'android') {
       Permissions.checkMultiple(['microphone', 'storage'])
       .then(response => {        
-        var permissionArray = []
         if (response.microphone !== 'authorized') {
           Permissions.request('microphone')
           .then(response => {
             if (response.storage !== 'authorized') {
               Permissions.request('storage')
-              .then(response => {                
+              .then(response => {
+                
               })
             }else{              
             }
@@ -78,7 +81,40 @@ Also, android above `Marshmallow` needs runtime permission to record audio. Usin
           }       
         }       
       })
+    } else {
+      Permissions.checkMultiple(['microphone', 'mediaLibrary'])
+      .then(response => {  
+        
+        console.warn(response)      
+        if (response.microphone !== 'authorized') {
+          Permissions.request('microphone')
+          .then(response => {
+            if (response.mediaLibrary !== 'authorized') {
+              Permissions.request('mediaLibrary')
+              .then(response => {
+              })
+            }else{              
+            }
+          })
+        } else {   
+          if (response.mediaLibrary !== 'authorized') {
+            Permissions.request('mediaLibrary')
+            .then(response => {
+              if (response == 'authorized') {
+                this.setState({
+                  hasPermissions: true
+                })
+              }
+            })
+          }else{
+            this.setState({
+              hasPermissions: true
+            })
+          }       
+        }       
+      })
     }
+  }
 ```
 
 ## Usage
