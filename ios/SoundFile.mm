@@ -113,8 +113,7 @@ void isRunningProc (  void *              inUserData,
           fromTimeInMs:(NSInteger) fromTms toTimeInMs:(NSInteger) toTms
 {
     // get information from input file
-    NSString *fullPath = [[SoundFile applicationDocumentsDirectory] stringByAppendingPathComponent:filepath];
-    CFURLRef urlRef = (__bridge CFURLRef)[NSURL URLWithString:fullPath];
+    CFURLRef urlRef = (__bridge CFURLRef)[NSURL URLWithString:filepath];
     ExtAudioFileRef inputFile;
     if (![self checkError:ExtAudioFileOpenURL(urlRef, &inputFile) withErrorString:@"Audio Source Error"])
     {
