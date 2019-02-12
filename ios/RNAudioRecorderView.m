@@ -94,11 +94,9 @@
 //
 - (void) initialize:(NSString *) filepath offset:(NSInteger) offsetInMs {
     [self destroy];
-    soundFile = [[SoundFile alloc] initWithFilePath:filepath pixelsPerSec:_pixelsPerSecond fromInMs:-1 toInMs:-1];
+    soundFile = [[SoundFile alloc] initWithFilePath:filepath pixelsPerSec:_pixelsPerSecond fromInMs:offsetInMs toInMs:-1];
     waveform.soundFile = soundFile;
     [waveform setNeedsDisplay];
-    NSInteger offset = offsetInMs / 1000.f * soundFile.audioFormat.mSampleRate / soundFile.samplesPerPixel;
-    [waveform setOffset:offset];
 }
 
 - (NSString*) renderByFile:(NSString*) filepath {
@@ -130,7 +128,7 @@
 }
 
 - (void) destroy {
-    
+    soundFile = nil;
 }
 
 // start/pause recording
