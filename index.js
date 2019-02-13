@@ -7,7 +7,8 @@ import {
   StyleSheet,
   ViewPropTypes,
   requireNativeComponent,
-  UIManager,
+  DeviceEventEmitter,
+  NativeEventEmitter,
   findNodeHandle
 } from 'react-native'
 import PropTypes from 'prop-types'
@@ -20,8 +21,23 @@ export default class AudioRecorder extends React.Component {
     super(props)
   }
 
+  componentDidMount() {
+    DeviceEventEmitter.addListener('onPlayFinished', this._onPlayFinished.bind(this))
+  }
+
+  componentWillUnmount() {
+    this.eventSubscription.remove()
+  }
+
+  _onPlayFinished() {
+    if (this.props.onPlayFinished)
+    {
+      this.props.onPlayFinished()
+    }
+  }
+
   initialize(filename, startTimeInMS) {
-    RNAudioRecorder.initialize(findNodeHandle(this.recorderView), filename, startTimeInMS)
+    return RNAudioRecorder.initialize(findNodeHandle(this.recorderView), filename, startTimeInMS)
   }
 
   renderByFile(filename) {
@@ -29,7 +45,7 @@ export default class AudioRecorder extends React.Component {
   }
 
   startRecording() {
-    RNAudioRecorder.startRecording(findNodeHandle(this.recorderView))
+    return RNAudioRecorder.startRecording(findNodeHandle(this.recorderView))
   }
 
   stopRecording(){
@@ -37,7 +53,11 @@ export default class AudioRecorder extends React.Component {
   }
 
   play() {
-    RNAudioRecorder.play(findNodeHandle(this.recorderView))
+    return RNAudioRecorder.play(findNodeHandle(this.recorderView))
+  }
+
+  pause() {
+    return RNAudioRecorder.pause(findNodeHandle(this.recorderView))
   }
 
   cut(filename, fromTime, toTime){
@@ -65,7 +85,8 @@ export default class AudioRecorder extends React.Component {
         pixelsPerSecond={pixelsPerSecond}
         plotLineColor={plotLineColor}
         timeTextColor={timeTextColor}
-        timeTextSize={timeTextSize} />
+        timeTextSize={timeTextSize}
+        onPlayFinished={this._onPlayFinished.bind(this)} />
     )
   }
 }
@@ -78,7 +99,8 @@ AudioRecorder.propTypes = {
   pixelsPerSecond: PropTypes.number,
   plotLineColor: PropTypes.string,
   timeTextColor: PropTypes.string,
-  timeTextSize: PropTypes.number
+  timeTextSize: PropTypes.number,
+  onPlayFinished: PropTypes.func
 }
 
 AudioRecorder.defaultProps = {
