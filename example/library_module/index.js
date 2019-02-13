@@ -21,7 +21,7 @@ export default class AudioRecorder extends React.Component {
   }
 
   initialize(filename, startTimeInMS) {
-    RNAudioRecorder.initialize(findNodeHandle(this.recorderView), filename, startTimeInMS)
+    return RNAudioRecorder.initialize(findNodeHandle(this.recorderView), filename, startTimeInMS)
   }
 
   renderByFile(filename) {
@@ -29,7 +29,7 @@ export default class AudioRecorder extends React.Component {
   }
 
   startRecording() {
-    RNAudioRecorder.startRecording(findNodeHandle(this.recorderView))
+    return RNAudioRecorder.startRecording(findNodeHandle(this.recorderView))
   }
 
   stopRecording(){
@@ -37,7 +37,11 @@ export default class AudioRecorder extends React.Component {
   }
 
   play() {
-    RNAudioRecorder.play(findNodeHandle(this.recorderView))
+    return RNAudioRecorder.play(findNodeHandle(this.recorderView))
+  }
+
+  pause() {
+    return RNAudioRecorder.pause(findNodeHandle(this.recorderView))
   }
 
   cut(filename, fromTime, toTime){

@@ -50,6 +50,8 @@ public class RNAudioRecorderView extends RelativeLayout {
     private boolean onScrollWhenPlay = true;
     private int mPixelsPerSec = 100;
 
+    DisplayMetrics mMetrics;
+
     // The Thread for Audio Recording.
     // It should be existed only while recording.
     Thread mRecordAudioThread;
@@ -64,8 +66,8 @@ public class RNAudioRecorderView extends RelativeLayout {
         LayoutParams params1 = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
         mWaveForm = new WaveformView(getContext());
         this.addView(mWaveForm, params1);
-        DisplayMetrics metrics = getContext().getResources().getDisplayMetrics();
-        mWaveForm.setDensity(metrics.density);
+        mMetrics = getContext().getResources().getDisplayMetrics();
+        mWaveForm.setDensity(mMetrics.density);
         mWaveForm.setListener(waveformListener);
 
         mTvStatus = new TextView(getContext());
@@ -83,7 +85,7 @@ public class RNAudioRecorderView extends RelativeLayout {
 
     // setter pixelsPerSecond property from Java Script
     public void setPixelsPerSecond(int pixelsPerSecond) {
-        mPixelsPerSec = pixelsPerSecond;
+        mPixelsPerSec = (int)(pixelsPerSecond * mMetrics.density);
     }
 
     // setter timeTextColor property from Java Script
@@ -241,9 +243,9 @@ public class RNAudioRecorderView extends RelativeLayout {
 
     // Start Recording, invoked from JavaScript
     // Requirement: initialized. It should be checked on Javascript.    
-    public void startRecording() {
+    public boolean startRecording() {
         // if no Sound File, clear it.
-        if (mSoundFile == null) return;
+        if (mSoundFile == null) return false;
 
         // If play, release it.
         releasePlayer();
@@ -251,8 +253,7 @@ public class RNAudioRecorderView extends RelativeLayout {
 
         // If Recording, pause it.
         if (mRecordAudioThread != null) {
-            mNeedProcessStop = true;
-            return;
+            return true;
         }
 
         // if the position isn't on end of file, the sound should be truncated and continue the recording.
@@ -269,6 +270,7 @@ public class RNAudioRecorderView extends RelativeLayout {
             }
         };
         mRecordAudioThread.start();
+        return true;
     }
 
     // Stop Recording and return the path of recorded audio file
@@ -308,8 +310,8 @@ public class RNAudioRecorderView extends RelativeLayout {
     }
 
     // play/pause audio file
-    public void play() {
-        if (mSoundFile == null) return;
+    public boolean play() {
+        if (mSoundFile == null) return false;
         if (mPlayer == null) {
 
             // Create Player
@@ -323,14 +325,23 @@ public class RNAudioRecorderView extends RelativeLayout {
             });
         }
 
-        if (mPlayer.isPlaying()) {
-            mPlayer.pause();
-            mPlayerHandler.removeCallbacks(playRunnable);
-        }else{
+        if (!mPlayer.isPlaying()) {
             mPlayer.seekTo(mWaveForm.pixelsToMillisecs(mWaveForm.getOffset()));
             mPlayerHandler.postDelayed(playRunnable, 100);
             mPlayer.start();
         }
+        return true;
+    }
+
+    // pause file
+    public boolean pause() {
+        if (mSoundFile == null) return false;
+
+        if (mPlayer != null && mPlayer.isPlaying()) {
+            mPlayer.pause();
+            mPlayerHandler.removeCallbacks(playRunnable);
+        }
+        return true;
     }
 
     // Play Runnable to update waveform
