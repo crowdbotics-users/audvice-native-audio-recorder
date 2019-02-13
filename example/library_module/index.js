@@ -22,7 +22,8 @@ export default class AudioRecorder extends React.Component {
   }
 
   _onPlayFinished() {
-    if (this.props.onPlayFinished) {
+    if (this.props.onPlayFinished)
+    {
       this.props.onPlayFinished()
     }
   }
@@ -90,6 +91,7 @@ AudioRecorder.propTypes = {
   plotLineColor: PropTypes.string,
   timeTextColor: PropTypes.string,
   timeTextSize: PropTypes.number,
+  onPlayFinished: PropTypes.func
 }
 
 AudioRecorder.defaultProps = {
@@ -99,6 +101,5 @@ AudioRecorder.defaultProps = {
   pixelsPerSecond: 50,
   plotLineColor: 'white',
   timeTextColor: 'white',
-  timeTextSize: 20,
-  onPlayFinished: PropTypes.func
+  timeTextSize: 20
 }
