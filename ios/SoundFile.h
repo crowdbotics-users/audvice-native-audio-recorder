@@ -32,7 +32,7 @@ typedef enum : NSUInteger {
 @public SInt64      mRecordPacket;
 @public BOOL        mIsDone;
 @public SInt64      mCurrentReadPacket;
-@public UInt32      mNumPacketsToRead;
+@public UInt32      mNumPacketsToRead;    
 }
 
 @property(nonatomic)        BOOL isInitialized;

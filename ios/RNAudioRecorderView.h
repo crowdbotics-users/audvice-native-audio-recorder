@@ -10,6 +10,7 @@
 #import <React/RCTBridge.h>
 #import <React/RCTBridgeModule.h>
 #import <UIKit/UIKit.h>
+#import <React/RCTComponent.h>
 
 @interface RNAudioRecorderView : UIView
 
@@ -18,6 +19,7 @@
 @property (nonatomic) NSInteger timeTextSize;
 @property (strong, nonatomic) UIColor *plotLineColor;
 @property (nonatomic) BOOL onScroll;
+@property (nonatomic, copy) RCTBubblingEventBlock onPlayFinished;
 
 - (id)initWithBridge:(RCTBridge *)bridge;
 
@@ -28,10 +30,11 @@
 
 - (void) destroy;
 
-- (void) startRecording;
+- (BOOL) startRecording;
 - (NSString*) stopRecording;
 
-- (void) play;
+- (BOOL) play;
+- (BOOL) pause;
 
 - (long) getDuration;
 

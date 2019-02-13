@@ -24,10 +24,12 @@ RCT_EXPORT_MODULE()
     return [[RNAudioRecorderView alloc] initWithBridge:self.bridge];
 }
 
+RCT_EXPORT_VIEW_PROPERTY(onPlayFinished, RCTBubblingEventBlock)
+
 RCT_CUSTOM_VIEW_PROPERTY(pixelsPerSecond, NSInteger, RNAudioRecorderView)
 {
     NSInteger pixelsPerSecond = [RCTConvert NSInteger:json];
-    [view setPixelsPerSecond:pixelsPerSecond];
+    [view setPixelsPerSecond:pixelsPerSecond];    
 }
 
 RCT_CUSTOM_VIEW_PROPERTY(plotLineColor, UIColor, RNAudioRecorderView)
@@ -54,14 +56,20 @@ RCT_CUSTOM_VIEW_PROPERTY(onScroll, BOOL, RNAudioRecorderView)
     [view setOnScroll:onScroll];
 }
 
-RCT_EXPORT_METHOD(initialize:(nonnull NSNumber *)reactTag filename:(NSString *)filename offset:(NSInteger)offset)
+RCT_EXPORT_METHOD(initialize:(nonnull NSNumber *)reactTag
+                  filename:(NSString *)filename
+                  offset:(NSInteger)offset
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
 {
     [self.bridge.uiManager addUIBlock:^(__unused RCTUIManager *uiManager, NSDictionary<NSNumber *, RNAudioRecorderView *> *viewRegistry) {
         RNAudioRecorderView *view = viewRegistry[reactTag];
         if (![view isKindOfClass:[RNAudioRecorderView class]]) {
             RCTLogError(@"Invalid view returned from registry, expecting RNCamera, got: %@", view);
+            reject(@"ViewNotFound", @"Cannot Find View", nil);
         } else {
             [view initialize:filename offset:offset];
+            resolve(@"success");
         }
     }];
 }
@@ -131,14 +139,21 @@ RCT_EXPORT_METHOD(destroy:(nonnull NSNumber *)reactTag
     }];
 }
 
-RCT_EXPORT_METHOD(startRecording:(nonnull NSNumber *)reactTag)
+RCT_EXPORT_METHOD(startRecording:(nonnull NSNumber *)reactTag
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
 {
     [self.bridge.uiManager addUIBlock:^(__unused RCTUIManager *uiManager, NSDictionary<NSNumber *, RNAudioRecorderView *> *viewRegistry) {
         RNAudioRecorderView *view = viewRegistry[reactTag];
         if (![view isKindOfClass:[RNAudioRecorderView class]]) {
             RCTLogError(@"Invalid view returned from registry, expecting RNCamera, got: %@", view);
+            reject(@"ViewNotFound", @"Cannot Find View", nil);
         } else {
-            [view startRecording];
+            if ([view startRecording]){
+                resolve(@"success");
+            } else {
+                reject(@"InitError", @"Before start recording, please call initialize", nil);
+            }
         }
     }];
 }
@@ -168,14 +183,40 @@ RCT_EXPORT_METHOD(stopRecording:(nonnull NSNumber *)reactTag
     }];
 }
 
-RCT_EXPORT_METHOD(play:(nonnull NSNumber *)reactTag)
+RCT_EXPORT_METHOD(play:(nonnull NSNumber *)reactTag
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
 {
     [self.bridge.uiManager addUIBlock:^(__unused RCTUIManager *uiManager, NSDictionary<NSNumber *, RNAudioRecorderView *> *viewRegistry) {
         RNAudioRecorderView *view = viewRegistry[reactTag];
         if (![view isKindOfClass:[RNAudioRecorderView class]]) {
             RCTLogError(@"Invalid view returned from registry, expecting RNCamera, got: %@", view);
+            reject(@"ViewNotFound", @"Cannot Find View", nil);
         } else {
-            [view play];
+            if ([view play]){
+                resolve(@"success");
+            } else {
+                reject(@"InitError", @"Before play, please call initialize", nil);
+            }
+        }
+    }];
+}
+
+RCT_EXPORT_METHOD(pause:(nonnull NSNumber *)reactTag
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+{
+    [self.bridge.uiManager addUIBlock:^(__unused RCTUIManager *uiManager, NSDictionary<NSNumber *, RNAudioRecorderView *> *viewRegistry) {
+        RNAudioRecorderView *view = viewRegistry[reactTag];
+        if (![view isKindOfClass:[RNAudioRecorderView class]]) {
+            RCTLogError(@"Invalid view returned from registry, expecting RNCamera, got: %@", view);
+            reject(@"ViewNotFound", @"Cannot Find View", nil);
+        } else {
+            if ([view pause]){
+                resolve(@"success");
+            } else {
+                reject(@"InitError", @"Before pause, please call initialize", nil);
+            }
         }
     }];
 }

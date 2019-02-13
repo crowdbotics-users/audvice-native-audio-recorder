@@ -32,7 +32,7 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void initialize(final int viewId, final String filename, final int offset) {
+    public void initialize(final int viewId, final String filename, final int offset, final Promise promise) {
         UIManagerModule uiManager = getReactApplicationContext().getNativeModule(UIManagerModule.class);
         uiManager.addUIBlock(new UIBlock() {
             @Override
@@ -41,6 +41,9 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
                 if (view instanceof RNAudioRecorderView) {
                     RNAudioRecorderView audioRecorderView = (RNAudioRecorderView)view;
                     audioRecorderView.initialize(filename, offset);
+                    promise.resolve("success");
+                } else {
+                    promise.reject("ViewNotFound", "Cannot Find View");
                 }
             }
         });
@@ -107,7 +110,7 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
                         output = audioRecorderView.stopRecording();
                         long duration = audioRecorderView.getDuration();
                         if (output == null) {
-                            promise.reject("SaveError", "File Not Found!");
+                            promise.reject("InitError", "Before stop recording, please call initialize");
                         }else {
                             WritableMap map = Arguments.createMap();
                             map.putString("filepath", output);
@@ -126,7 +129,7 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void startRecording(final int viewId) {
+    public void startRecording(final int viewId, final Promise promise) {
         UIManagerModule uiManager = getReactApplicationContext().getNativeModule(UIManagerModule.class);
         uiManager.addUIBlock(new UIBlock() {
             @Override
@@ -134,14 +137,20 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
                 View view = nativeViewHierarchyManager.resolveView(viewId);
                 if (view instanceof RNAudioRecorderView) {
                     RNAudioRecorderView audioRecorderView = (RNAudioRecorderView)view;
-                    audioRecorderView.startRecording();
+                    if (audioRecorderView.startRecording()) {
+                        promise.resolve("success");
+                    } else {
+                        promise.reject("InitError", "Before start recording, please call initialize");
+                    }
+                } else {
+                    promise.reject("ViewNotFound", "Cannot Find View");
                 }
             }
         });
     }
 
     @ReactMethod
-    public void play(final int viewId) {
+    public void play(final int viewId, final Promise promise) {
         UIManagerModule uiManager = getReactApplicationContext().getNativeModule(UIManagerModule.class);
         uiManager.addUIBlock(new UIBlock() {
             @Override
@@ -149,7 +158,34 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
                 View view = nativeViewHierarchyManager.resolveView(viewId);
                 if (view instanceof RNAudioRecorderView) {
                     RNAudioRecorderView audioRecorderView = (RNAudioRecorderView)view;
-                    audioRecorderView.play();
+                    if (audioRecorderView.play()) {
+                        promise.resolve("success");
+                    } else {
+                        promise.reject("InitError", "Before play recording, please call initialize");
+                    }
+                } else {
+                    promise.reject("ViewNotFound", "Cannot Find View");
+                }
+            }
+        });
+    }
+
+    @ReactMethod
+    public void pause(final int viewId, final Promise promise) {
+        UIManagerModule uiManager = getReactApplicationContext().getNativeModule(UIManagerModule.class);
+        uiManager.addUIBlock(new UIBlock() {
+            @Override
+            public void execute(NativeViewHierarchyManager nativeViewHierarchyManager) {
+                View view = nativeViewHierarchyManager.resolveView(viewId);
+                if (view instanceof RNAudioRecorderView) {
+                    RNAudioRecorderView audioRecorderView = (RNAudioRecorderView)view;
+                    if (audioRecorderView.pause()) {
+                        promise.resolve("success");
+                    } else {
+                        promise.reject("InitError", "Before pause recording, please call initialize");
+                    }
+                } else {
+                    promise.reject("ViewNotFound", "Cannot Find View");
                 }
             }
         });
