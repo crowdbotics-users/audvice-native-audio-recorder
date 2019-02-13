@@ -48,6 +48,12 @@
     // add notification observer to stop action when the app move to background.
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(appMoveToBackground:) name:UIApplicationDidEnterBackgroundNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(playUpdated:) name:kNotificationPlayingUpdate object:nil];
+    
+    
+    // set audio session
+    AVAudioSession *session = [AVAudioSession sharedInstance];    
+    [session setCategory:AVAudioSessionCategoryPlayAndRecord withOptions:AVAudioSessionCategoryOptionDefaultToSpeaker error:nil];
+    [session setActive:YES error:nil];
 }
 
 // called when thee app move to background
