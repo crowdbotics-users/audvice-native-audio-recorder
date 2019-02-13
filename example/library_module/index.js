@@ -7,7 +7,7 @@ import {
   StyleSheet,
   ViewPropTypes,
   requireNativeComponent,
-  UIManager,
+  DeviceEventEmitter,
   findNodeHandle
 } from 'react-native'
 import PropTypes from 'prop-types'
@@ -18,6 +18,13 @@ const RNAudioRecorderView = requireNativeComponent('RNAudioRecorderView')
 export default class AudioRecorder extends React.Component {
   constructor(props) {
     super(props)
+    DeviceEventEmitter.addListener('onPlayFinished', this._onPlayFinished.bind(this))
+  }
+
+  _onPlayFinished() {
+    if (this.props.onPlayFinished) {
+      this.props.onPlayFinished()
+    }
   }
 
   initialize(filename, startTimeInMS) {
@@ -82,7 +89,7 @@ AudioRecorder.propTypes = {
   pixelsPerSecond: PropTypes.number,
   plotLineColor: PropTypes.string,
   timeTextColor: PropTypes.string,
-  timeTextSize: PropTypes.number
+  timeTextSize: PropTypes.number,
 }
 
 AudioRecorder.defaultProps = {
@@ -92,5 +99,6 @@ AudioRecorder.defaultProps = {
   pixelsPerSecond: 50,
   plotLineColor: 'white',
   timeTextColor: 'white',
-  timeTextSize: 20
+  timeTextSize: 20,
+  onPlayFinished: PropTypes.func
 }

@@ -16,6 +16,10 @@ import android.view.View;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
+import com.facebook.react.bridge.Arguments;
+import com.facebook.react.bridge.ReactContext;
+import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.modules.core.DeviceEventManagerModule;
 import com.reactlibrary.recorder.SamplePlayer;
 import com.reactlibrary.recorder.SoundFile;
 import com.reactlibrary.recorder.WaveformView;
@@ -390,6 +394,13 @@ public class RNAudioRecorderView extends RelativeLayout {
         if (onScrollWhenPlay)
             mWaveForm.setOffset(mWaveForm.maxPos());
         releasePlayer();
+
+        WritableMap payload = Arguments.createMap();
+        ReactContext reactContext = (ReactContext)getContext();
+        // Get EventEmitter from context and send event thanks to it
+        reactContext
+                .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+                .emit("onPlayFinished", payload);
     }
 
     // check permission

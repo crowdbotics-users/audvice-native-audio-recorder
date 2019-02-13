@@ -281,6 +281,7 @@ export default class App extends Component<Props> {
           onScroll={true}
           pixelsPerSecond={50}
           ref={ref => this.audioRecoder = ref}
+          onPlayFinished={() => console.warn('play finished')}
         />
         <View style={styles.buttonContainer}>
           <TouchableOpacity style={styles.button} onPress={this.onPressInit.bind(this)}>
