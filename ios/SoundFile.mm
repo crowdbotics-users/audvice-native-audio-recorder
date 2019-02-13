@@ -59,8 +59,9 @@ void isRunningProc (  void *              inUserData,
     
     OSStatus result = AudioQueueGetProperty (inAQ, kAudioQueueProperty_IsRunning, &isRunning, &size);
     
-    if (result == noErr)
+    if (result == noErr) {
         [[NSNotificationCenter defaultCenter] postNotificationName: kNotificationPlayingUpdate object: [NSNumber numberWithBool:isRunning]];
+    }
 }
 
 @interface SoundFile ()
@@ -96,6 +97,7 @@ void isRunningProc (  void *              inUserData,
         mNumPacketsToRead = 0;
         mIsDone = false;
         _samplesPerPixel = _audioFormat.mSampleRate / mPixelsPerSec;
+        
         if ([self openAudioFile:filename fromTimeInMs:fromInMs toTimeInMs:toInMs]) {
             _isInitialized = true;
         }
@@ -370,6 +372,11 @@ void isRunningProc (  void *              inUserData,
     UInt32 maxPacketSize;
     UInt32 size = sizeof(maxPacketSize);
     AudioFileGetProperty(mRecordFile, kAudioFilePropertyPacketSizeUpperBound, &size, &maxPacketSize);
+    
+    if (maxPacketSize == 0) {
+        AudioQueueDispose(mQueue, YES);
+        return;
+    }
     
     // adjust buffer size to represent about a half second of audio based on this format
     [self calculateBytesForTime:_audioFormat inMaxPacketSize:maxPacketSize inSeconds:kBufferDurationSeconds outBufferSize:&bufferByteSize outNumPackets:&mNumPacketsToRead];

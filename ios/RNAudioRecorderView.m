@@ -36,6 +36,7 @@
 - (void)dealloc {
     // remove notification observer
     [[NSNotificationCenter defaultCenter] removeObserver:self name:UIApplicationDidEnterBackgroundNotification object:nil];
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:kNotificationPlayingUpdate object:nil];
 }
 
 - (void) initView {
@@ -46,6 +47,7 @@
     
     // add notification observer to stop action when the app move to background.
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(appMoveToBackground:) name:UIApplicationDidEnterBackgroundNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(playUpdated:) name:kNotificationPlayingUpdate object:nil];
 }
 
 // called when thee app move to background
@@ -55,6 +57,14 @@
             [soundFile stopPlay];
         } else if (soundFile.fileStatus == IsRecording) {
             [soundFile stopRecord];
+        }
+    }
+}
+
+- (void) playUpdated:(NSNotification *) notification {
+    if (![notification.object boolValue]) {
+        if (self.onPlayFinished) {
+            self.onPlayFinished(nil);
         }
     }
 }
@@ -132,16 +142,18 @@
 }
 
 // start/pause recording
-- (void) startRecording {
+- (BOOL) startRecording {
     if (soundFile == nil)
-        return;
-    if ([soundFile fileStatus] == IsRecording) {
-        [soundFile stopRecord];
-    } else if ([soundFile fileStatus] == IsNone) {
+        return false;
+    if ([soundFile fileStatus] == IsPlaying) {
+        [soundFile stopPlay];
+    }
+    if ([soundFile fileStatus] == IsNone) {
         NSInteger offset = [waveform offset];
         NSInteger samples = offset * soundFile.samplesPerPixel;
         [soundFile startRecord:samples];
     }
+    return true;
 }
 
 // stop recordign and then return audio path
@@ -157,18 +169,29 @@
     return @"";
 }
 
-// play/pause audio file
-- (void) play {
+// play audio file
+- (BOOL) play {
     if (soundFile == nil)
-        return;
-    if ([soundFile fileStatus] == IsPlaying) {
-        [soundFile stopPlay];
-    } else if ([soundFile fileStatus] == IsNone) {
+        return false;
+    if ([soundFile fileStatus] == IsRecording) {
+        [soundFile stopRecord];
+    }
+    if ([soundFile fileStatus] == IsNone) {
         NSInteger offset = [waveform offset];
         NSInteger samples = offset * soundFile.samplesPerPixel;
         [soundFile play:samples];
     }
-    
+    return true;
+}
+
+// play audio file
+- (BOOL) pause {
+    if (soundFile == nil)
+        return false;
+    if ([soundFile fileStatus] == IsPlaying) {
+        [soundFile stopPlay];
+    }
+    return true;
 }
 
 - (long) getDuration {
