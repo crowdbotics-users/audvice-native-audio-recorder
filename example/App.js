@@ -13,6 +13,8 @@ import Permissions from 'react-native-permissions'
 import AudioRecorder from './library_module'
 // import AudioRecorder from 'react-native-audio-recorder'
 
+var audioFile = Platform.OS === 'android' ? '/sdcard/Android/media/com.google.android.talk/Ringtones/hangouts_incoming_call.ogg' : '1.mp3'
+
 type Props = {};
 export default class App extends Component<Props> {
 
@@ -33,7 +35,6 @@ export default class App extends Component<Props> {
     if (Platform.OS === 'android') {
       Permissions.checkMultiple(['microphone', 'storage'])
       .then(response => {        
-        var permissionArray = []
         if (response.microphone !== 'authorized') {
           Permissions.request('microphone')
           .then(response => {
@@ -51,6 +52,38 @@ export default class App extends Component<Props> {
             .then(response => {
             })
           }else{            
+            this.setState({
+              hasPermissions: true
+            })
+          }       
+        }       
+      })
+    } else {
+      Permissions.checkMultiple(['microphone', 'mediaLibrary'])
+      .then(response => {  
+        
+        console.warn(response)      
+        if (response.microphone !== 'authorized') {
+          Permissions.request('microphone')
+          .then(response => {
+            if (response.mediaLibrary !== 'authorized') {
+              Permissions.request('mediaLibrary')
+              .then(response => {
+              })
+            }else{              
+            }
+          })
+        } else {   
+          if (response.mediaLibrary !== 'authorized') {
+            Permissions.request('mediaLibrary')
+            .then(response => {
+              if (response == 'authorized') {
+                this.setState({
+                  hasPermissions: true
+                })
+              }
+            })
+          }else{
             this.setState({
               hasPermissions: true
             })
@@ -108,6 +141,7 @@ export default class App extends Component<Props> {
         this.setState({
           result: `${res.filepath} : ${res.duration} ms`
         })
+        audioFile = res.filepath
       })
       .catch((err) => {
         this.setState({
@@ -146,8 +180,7 @@ export default class App extends Component<Props> {
       )
       return
     }
-
-    this.audioRecoder.initialize('/sdcard/Android/media/com.google.android.talk/Ringtones/hangouts_incoming_call.ogg', 2000)
+    this.audioRecoder.initialize(audioFile, 2000)
     .then(res => {
       this.setState({
         result: res,
@@ -173,7 +206,7 @@ export default class App extends Component<Props> {
       return
     }
 
-    this.audioRecoder.renderByFile('/sdcard/Android/media/com.google.android.talk/Ringtones/hangouts_incoming_call.ogg')
+    this.audioRecoder.renderByFile(audioFile)
     .then(res => {
       this.setState({
         result: res,
@@ -223,7 +256,7 @@ export default class App extends Component<Props> {
       )
       return
     }
-    this.audioRecoder.cut('/sdcard/Android/media/com.google.android.talk/Ringtones/hangouts_incoming_call.ogg', 500, 2000)
+    this.audioRecoder.cut(audioFile, 500, 2000)
     .then(res => {
       this.setState({
         result: `${res.filepath} : ${res.duration} ms`,
