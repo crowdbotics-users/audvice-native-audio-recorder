@@ -180,7 +180,10 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
                 if (view instanceof RNAudioRecorderView) {
                     RNAudioRecorderView audioRecorderView = (RNAudioRecorderView)view;
                     if (audioRecorderView.pause()) {
-                        promise.resolve("success");
+                        long positionInMs = audioRecorderView.getPosition();
+                        WritableMap map = Arguments.createMap();
+                        map.putDouble("position", positionInMs);
+                        promise.resolve(map);
                     } else {
                         promise.reject("InitError", "Before pause recording, please call initialize");
                     }

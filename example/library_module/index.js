@@ -23,6 +23,7 @@ export default class AudioRecorder extends React.Component {
 
   componentDidMount() {
     DeviceEventEmitter.addListener('onPlayFinished', this._onPlayFinished.bind(this))
+    DeviceEventEmitter.addListener('onScrolled', this._onScrolled.bind(this))
   }
 
   componentWillUnmount() {
@@ -33,6 +34,13 @@ export default class AudioRecorder extends React.Component {
     if (this.props.onPlayFinished)
     {
       this.props.onPlayFinished()
+    }
+  }
+
+  _onScrolled(value) {    
+    if (this.props.onScrolled)
+    {
+      this.props.onScrolled(value.position)
     }
   }
 
@@ -86,6 +94,7 @@ export default class AudioRecorder extends React.Component {
         plotLineColor={plotLineColor}
         timeTextColor={timeTextColor}
         timeTextSize={timeTextSize}
+        onScrolled={this._onScrolled.bind(this)}
         onPlayFinished={this._onPlayFinished.bind(this)} />
     )
   }
@@ -100,7 +109,8 @@ AudioRecorder.propTypes = {
   plotLineColor: PropTypes.string,
   timeTextColor: PropTypes.string,
   timeTextSize: PropTypes.number,
-  onPlayFinished: PropTypes.func
+  onPlayFinished: PropTypes.func,
+  onScrolled: PropTypes.func
 }
 
 AudioRecorder.defaultProps = {
