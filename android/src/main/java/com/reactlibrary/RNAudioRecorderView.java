@@ -286,6 +286,14 @@ public class RNAudioRecorderView extends RelativeLayout {
         releasePlayer();
         mNeedProcessStop = true;
 
+        if (mRecordAudioThread != null) {
+            try {
+                mRecordAudioThread.join();
+            } catch (InterruptedException e) {
+
+            }
+        }
+
         mWaveForm.invalidate();
 
         String extension = mSoundFile.getFiletype();
