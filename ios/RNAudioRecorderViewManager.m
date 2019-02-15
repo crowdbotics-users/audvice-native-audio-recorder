@@ -25,6 +25,7 @@ RCT_EXPORT_MODULE()
 }
 
 RCT_EXPORT_VIEW_PROPERTY(onPlayFinished, RCTBubblingEventBlock)
+RCT_EXPORT_VIEW_PROPERTY(onScrolled, RCTBubblingEventBlock)
 
 RCT_CUSTOM_VIEW_PROPERTY(pixelsPerSecond, NSInteger, RNAudioRecorderView)
 {
@@ -213,7 +214,10 @@ RCT_EXPORT_METHOD(pause:(nonnull NSNumber *)reactTag
             reject(@"ViewNotFound", @"Cannot Find View", nil);
         } else {
             if ([view pause]){
-                resolve(@"success");
+                long position = [view getPosition];
+                resolve(@{
+                          @"position":[NSNumber numberWithLong:position]
+                          });
             } else {
                 reject(@"InitError", @"Before pause, please call initialize", nil);
             }

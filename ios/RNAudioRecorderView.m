@@ -43,6 +43,7 @@
     // initialize subviews
     waveform = [[WaveFormView alloc] initWithFrame:self.bounds];
     waveform.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    waveform.delegate = self;
     [self addSubview:waveform];
     
     // add notification observer to stop action when the app move to background.
@@ -205,6 +206,25 @@
         return [soundFile duration];
     }
     return 0;
+}
+
+
+// return current position by ms
+- (long) getPosition {
+    if (soundFile == nil)
+        return 0;
+    long offset = [waveform offset];
+    return offset * soundFile.samplesPerPixel * 1000 / soundFile.audioFormat.mSampleRate;
+}
+
+#pragma mark - WaveFormDelegate
+- (void)onScrolled:(WaveFormView *)view toOffset:(NSInteger)offset {
+    long positionInMs = offset * 1000 * soundFile.samplesPerPixel / soundFile.audioFormat.mSampleRate;
+    if (self.onScrolled) {
+        self.onScrolled(@{
+                          @"position":[NSNumber numberWithLong:positionInMs]
+                          });
+    }
 }
 
 @end

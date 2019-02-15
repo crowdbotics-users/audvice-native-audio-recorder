@@ -44,6 +44,13 @@ export default class AudioRecorder extends React.Component {
     }
   }
 
+  _onScrollediOS(event) {
+    if (this.props.onScrolled)
+    {
+      this.props.onScrolled(event.nativeEvent.position)
+    }
+  }
+
   initialize(filename, startTimeInMS) {
     return RNAudioRecorder.initialize(findNodeHandle(this.recorderView), filename, startTimeInMS)
   }
@@ -94,7 +101,7 @@ export default class AudioRecorder extends React.Component {
         plotLineColor={plotLineColor}
         timeTextColor={timeTextColor}
         timeTextSize={timeTextSize}
-        onScrolled={this._onScrolled.bind(this)}
+        onScrolled={this._onScrollediOS.bind(this)}
         onPlayFinished={this._onPlayFinished.bind(this)} />
     )
   }
