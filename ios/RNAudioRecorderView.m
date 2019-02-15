@@ -219,6 +219,9 @@
 
 #pragma mark - WaveFormDelegate
 - (void)onScrolled:(WaveFormView *)view toOffset:(NSInteger)offset {
+    if (soundFile == nil) {
+        return;
+    }
     long positionInMs = offset * 1000 * soundFile.samplesPerPixel / soundFile.audioFormat.mSampleRate;
     if (self.onScrolled) {
         self.onScrolled(@{
