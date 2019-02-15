@@ -25,7 +25,7 @@ RCT_EXPORT_MODULE()
 }
 
 RCT_EXPORT_VIEW_PROPERTY(onPlayFinished, RCTBubblingEventBlock)
-RCT_EXPORT_VIEW_PROPERTY(onScrolled, RCTBubblingEventBlock)
+RCT_EXPORT_VIEW_PROPERTY(onViewScrolled, RCTBubblingEventBlock)
 
 RCT_CUSTOM_VIEW_PROPERTY(pixelsPerSecond, NSInteger, RNAudioRecorderView)
 {

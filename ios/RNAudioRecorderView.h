@@ -21,7 +21,7 @@
 @property (strong, nonatomic) UIColor *plotLineColor;
 @property (nonatomic) BOOL onScroll;
 @property (nonatomic, copy) RCTBubblingEventBlock onPlayFinished;
-@property (nonatomic, copy) RCTBubblingEventBlock onScrolled;
+@property (nonatomic, copy) RCTBubblingEventBlock onViewScrolled;
 
 - (id)initWithBridge:(RCTBridge *)bridge;
 
