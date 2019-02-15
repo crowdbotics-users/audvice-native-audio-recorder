@@ -321,6 +321,12 @@ public class RNAudioRecorderView extends RelativeLayout {
         return (long)mSoundFile.getNumSamples() * 1000 / mSoundFile.getSampleRate();
     }
 
+    // return current position by ms
+    public long getPosition() {
+        if (mSoundFile == null) return 0;
+        return mWaveForm.pixelsToMillisecs(mWaveForm.getOffset());
+    }
+
     // play/pause audio file
     public boolean play() {
         if (mSoundFile == null) return false;
@@ -448,11 +454,19 @@ public class RNAudioRecorderView extends RelativeLayout {
         @Override
         public void waveformTouchMove(float x) {
             mWaveForm.setOffset(mTouchInitialOffset + (int)(mTouchStart - x));
+
         }
 
         @Override
         public void waveformTouchEnd() {
             mTouchDragging = false;
+            WritableMap payload = Arguments.createMap();
+            payload.putDouble("position", mWaveForm.pixelsToMillisecs(mWaveForm.getOffset()));
+            ReactContext reactContext = (ReactContext)getContext();
+            // Get EventEmitter from context and send event thanks to it
+            reactContext
+                    .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+                    .emit("onScrolled", payload);
         }
 
         @Override
