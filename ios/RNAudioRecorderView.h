@@ -11,8 +11,9 @@
 #import <React/RCTBridgeModule.h>
 #import <UIKit/UIKit.h>
 #import <React/RCTComponent.h>
+#import "WaveFormView.h"
 
-@interface RNAudioRecorderView : UIView
+@interface RNAudioRecorderView : UIView<WaveFormDelegate>
 
 @property (nonatomic) NSInteger pixelsPerSecond;
 @property (strong, nonatomic) UIColor *timeTextColor;
@@ -20,6 +21,7 @@
 @property (strong, nonatomic) UIColor *plotLineColor;
 @property (nonatomic) BOOL onScroll;
 @property (nonatomic, copy) RCTBubblingEventBlock onPlayFinished;
+@property (nonatomic, copy) RCTBubblingEventBlock onScrolled;
 
 - (id)initWithBridge:(RCTBridge *)bridge;
 
@@ -37,5 +39,6 @@
 - (BOOL) pause;
 
 - (long) getDuration;
+- (long) getPosition;
 
 @end

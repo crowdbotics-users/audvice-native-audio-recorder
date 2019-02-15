@@ -56,8 +56,37 @@
 // scroll event
 - (void) onPanGestureRecognize:(UIPanGestureRecognizer*) gesture {
     CGPoint translation = [gesture translationInView:self];
+    NSInteger offset = _offset - translation.x;
     [self setOffset:[self offset] - translation.x];
     [gesture setTranslation:CGPointZero inView:self];
+    switch (gesture.state) {
+        case UIGestureRecognizerStateBegan:
+            
+            break;
+        case UIGestureRecognizerStateChanged:
+            
+            break;
+        case UIGestureRecognizerStateEnded:
+            if (_delegate) {
+                [_delegate onScrolled:self toOffset:offset];
+            }            
+            break;
+            
+        case UIGestureRecognizerStateCancelled:
+            if (_delegate) {
+                [_delegate onScrolled:self toOffset:offset];
+            }
+            break;
+            
+        case UIGestureRecognizerStateFailed:
+            if (_delegate) {
+                [_delegate onScrolled:self toOffset:offset];
+            }
+            break;
+            
+        default:
+            break;
+    }
 }
 
 // scroll at the point, offset
