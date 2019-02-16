@@ -101,7 +101,7 @@ export default class AudioRecorder extends React.Component {
         plotLineColor={plotLineColor}
         timeTextColor={timeTextColor}
         timeTextSize={timeTextSize}
-        onScrolled={this._onScrollediOS.bind(this)}
+        onViewScrolled={this._onScrollediOS.bind(this)}
         onPlayFinished={this._onPlayFinished.bind(this)} />
     )
   }

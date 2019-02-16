@@ -223,8 +223,8 @@
         return;
     }
     long positionInMs = offset * 1000 * soundFile.samplesPerPixel / soundFile.audioFormat.mSampleRate;
-    if (self.onScrolled) {
-        self.onScrolled(@{
+    if (self.onViewScrolled) {
+        self.onViewScrolled(@{
                           @"position":[NSNumber numberWithLong:positionInMs]
                           });
     }
