@@ -24,8 +24,7 @@ RCT_EXPORT_MODULE()
     return [[RNAudioRecorderView alloc] initWithBridge:self.bridge];
 }
 
-RCT_EXPORT_VIEW_PROPERTY(onPlayFinished, RCTBubblingEventBlock)
-RCT_EXPORT_VIEW_PROPERTY(onViewScrolled, RCTBubblingEventBlock)
+RCT_EXPORT_VIEW_PROPERTY(onEventCallback, RCTBubblingEventBlock)
 
 RCT_CUSTOM_VIEW_PROPERTY(pixelsPerSecond, NSInteger, RNAudioRecorderView)
 {

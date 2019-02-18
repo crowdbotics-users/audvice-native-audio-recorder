@@ -70,9 +70,9 @@
 
 - (void) playUpdated:(NSNotification *) notification {
     if (![notification.object boolValue]) {
-        if (self.onPlayFinished) {
-            self.onPlayFinished(nil);
-        }
+        self.onEventCallback(@{
+                               @"type":@"PlayFinished"
+                               });
     }
 }
 
@@ -223,10 +223,11 @@
         return;
     }
     long positionInMs = offset * 1000 * soundFile.samplesPerPixel / soundFile.audioFormat.mSampleRate;
-    if (self.onViewScrolled) {
-        self.onViewScrolled(@{
-                          @"position":[NSNumber numberWithLong:positionInMs]
-                          });
+    if (self.onEventCallback) {
+        self.onEventCallback(@{
+                               @"type":@"Scrolled",
+                               @"position":[NSNumber numberWithLong:positionInMs]
+                               });
     }
 }
 

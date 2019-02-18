@@ -20,8 +20,7 @@
 @property (nonatomic) NSInteger timeTextSize;
 @property (strong, nonatomic) UIColor *plotLineColor;
 @property (nonatomic) BOOL onScroll;
-@property (nonatomic, copy) RCTBubblingEventBlock onPlayFinished;
-@property (nonatomic, copy) RCTBubblingEventBlock onViewScrolled;
+@property (nonatomic, copy) RCTBubblingEventBlock onEventCallback;
 
 - (id)initWithBridge:(RCTBridge *)bridge;
 

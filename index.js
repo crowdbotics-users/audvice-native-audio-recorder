@@ -30,6 +30,25 @@ export default class AudioRecorder extends React.Component {
     this.eventSubscription.remove()
   }
 
+  _onEventCallback(event) {
+    switch(event.nativeEvent.type) {
+      case 'PlayFinished':
+        if (this.props.onPlayFinished)
+        {
+          this.props.onPlayFinished()
+        }
+      break;
+      case 'Scrolled':
+        if (this.props.onScrolled)
+        {
+          this.props.onScrolled(event.nativeEvent.position)
+        }
+      break;
+      default:
+
+    }    
+  }
+
   _onPlayFinished() {
     if (this.props.onPlayFinished)
     {
@@ -101,8 +120,7 @@ export default class AudioRecorder extends React.Component {
         plotLineColor={plotLineColor}
         timeTextColor={timeTextColor}
         timeTextSize={timeTextSize}
-        onViewScrolled={this._onScrollediOS.bind(this)}
-        onPlayFinished={this._onPlayFinished.bind(this)} />
+        onEventCallback={this._onEventCallback.bind(this)} />
     )
   }
 }
