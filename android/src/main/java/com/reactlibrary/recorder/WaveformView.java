@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
@@ -113,9 +114,6 @@ public class WaveformView extends View {
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         if (mAutoSeeking) return false;
-        if (mGestureDetector.onTouchEvent(event)) {
-            return true;
-        }
 
         switch(event.getAction()) {
             case MotionEvent.ACTION_DOWN:
