@@ -31,7 +31,7 @@ void AQBufferCallback(void * inUserData,
     if (sf->mIsDone) return;
     UInt32 numBytes;
     UInt32 nPackets = sf->mNumPacketsToRead;
-    OSStatus result = AudioFileReadPacketData(sf->mRecordFile, false, &numBytes, inBuffer->mPacketDescriptions, sf->mCurrentReadPacket, &nPackets, inBuffer->mAudioData);
+    OSStatus result = AudioFileReadPackets(sf->mRecordFile, false, &numBytes, inBuffer->mPacketDescriptions, sf->mCurrentReadPacket, &nPackets, inBuffer->mAudioData);
     if (result)
         printf("AudioFileReadPackets failed: %d", (int)result);
     if (nPackets > 0) {
@@ -357,6 +357,9 @@ void isRunningProc (  void *              inUserData,
     AudioQueueStop(mQueue, YES);
     [self copyEncoderCookieToFile];
     AudioQueueDispose(mQueue, YES);
+    AudioFileClose(mRecordFile);
+    CFURLRef urlRef = (__bridge CFURLRef)[NSURL URLWithString:self.soundFilePath];
+    AudioFileOpenURL(urlRef, kAudioFileReadWritePermission, 0, &mRecordFile);
     _fileStatus = IsNone;
 }
 
@@ -379,7 +382,7 @@ void isRunningProc (  void *              inUserData,
     }
     
     // adjust buffer size to represent about a half second of audio based on this format
-    [self calculateBytesForTime:_audioFormat inMaxPacketSize:maxPacketSize inSeconds:kBufferDurationSeconds outBufferSize:&bufferByteSize outNumPackets:&mNumPacketsToRead];
+    [self calculateBytesForTime:_audioFormat inMaxPacketSize:maxPacketSize inSeconds:0.5 outBufferSize:&bufferByteSize outNumPackets:&mNumPacketsToRead];
     
     //printf ("Buffer Byte Size: %d, Num Packets to Read: %d\n", (int)bufferByteSize, (int)mNumPacketsToRead);
     
@@ -526,7 +529,7 @@ void isRunningProc (  void *              inUserData,
 - (NSString*) getTempFile {
     NSDate *now = [NSDate date];
     NSDateFormatter *simpleFormat = [[NSDateFormatter alloc] init];
-    simpleFormat.dateFormat = @"yyyy-mm-dd-HH-MM-SS-zzz";
+    simpleFormat.dateFormat = @"yyyy-MM-dd-HH-mm-SS-zzz";
     NSString *filename = [NSString stringWithFormat:@"%@.wav", [simpleFormat stringFromDate:now]];
     return [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
 }
