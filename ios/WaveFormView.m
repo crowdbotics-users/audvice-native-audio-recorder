@@ -121,7 +121,7 @@
     if ([notification.object boolValue]) {
         mPlayStartTime = CACurrentMediaTime() - 0.25;
         mStartOffset = _offset;
-        playTimer = [NSTimer scheduledTimerWithTimeInterval:0.1 repeats:true block:^(NSTimer * _Nonnull timer) {
+        playTimer = [NSTimer scheduledTimerWithTimeInterval:0.02 repeats:true block:^(NSTimer * _Nonnull timer) {
             if (self->_onScroll) {
                 [self setOffset:self->mStartOffset + (CACurrentMediaTime() - self->mPlayStartTime) * self->mSampleRate / self->mSamplesPerPixel];
             }

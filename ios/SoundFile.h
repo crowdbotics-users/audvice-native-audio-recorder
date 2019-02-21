@@ -14,7 +14,7 @@
 #define kNumberRecordBuffers    3
 
 // Update Time Interval for playing and recording
-#define kBufferDurationSeconds .1
+#define kBufferDurationSeconds .05
 
 #define kNotificationRecordingUpdate @"notificationrecording"
 #define kNotificationPlayingUpdate @"notificationplaying"
