@@ -129,7 +129,6 @@
     } else {
         [playTimer invalidate];
         playTimer = nil;
-        
     }
 }
 

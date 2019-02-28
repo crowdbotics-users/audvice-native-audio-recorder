@@ -350,6 +350,9 @@ void isRunningProc (  void *              inUserData,
     
     _fileStatus = IsRecording;
     status = AudioQueueStart(mQueue, NULL);
+    if (status) {
+        AudioQueueStart(mQueue, NULL);
+    }
 }
 
 - (void) stopRecord {

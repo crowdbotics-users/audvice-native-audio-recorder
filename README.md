@@ -35,6 +35,8 @@
   	```
 
 ### Post installation
+
+#### iOS
 On *iOS* you need to add a usage description to `Info.plist`:
 
 ```xml
@@ -45,8 +47,9 @@ On *iOS* you need to add a usage description to `Info.plist`:
 ```
 
 Add *AudioToolbox.framework* in project setting
+Enable *background mode* in App Capabilities and checked out the *Audio, AirPlay, and Picture in Picture* option.
 
-
+#### Android
 On *Android* you need to add a permission to `AndroidManifest.xml`:
 
 ```xml

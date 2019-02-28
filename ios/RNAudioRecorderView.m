@@ -47,14 +47,25 @@
     [self addSubview:waveform];
     
     // add notification observer to stop action when the app move to background.
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(appMoveToBackground:) name:UIApplicationDidEnterBackgroundNotification object:nil];
+//    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(appMoveToBackground:) name:UIApplicationDidEnterBackgroundNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(playUpdated:) name:kNotificationPlayingUpdate object:nil];
     
     
     // set audio session
-    AVAudioSession *session = [AVAudioSession sharedInstance];    
-    [session setCategory:AVAudioSessionCategoryPlayAndRecord withOptions:AVAudioSessionCategoryOptionDefaultToSpeaker error:nil];
+    AVAudioSession *session = [AVAudioSession sharedInstance];
     [session setActive:YES error:nil];
+    [session setCategory:AVAudioSessionCategoryPlayAndRecord withOptions:AVAudioSessionCategoryOptionDefaultToSpeaker error:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(audioSessionInterrupted:) name:AVAudioSessionInterruptionNotification object:session];
+}
+
+- (void) audioSessionInterrupted:(NSNotification*) notification {
+    if (soundFile) {
+        if ([soundFile fileStatus] == IsPlaying) {
+            [soundFile stopPlay];
+        } else if ([soundFile fileStatus] == IsRecording) {
+            [soundFile stopRecord];
+        }
+    }
 }
 
 // called when thee app move to background
