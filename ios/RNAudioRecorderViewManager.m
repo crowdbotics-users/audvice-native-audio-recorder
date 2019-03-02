@@ -224,4 +224,33 @@ RCT_EXPORT_METHOD(pause:(nonnull NSNumber *)reactTag
     }];
 }
 
+
+RCT_EXPORT_METHOD(compress:(nonnull NSNumber *)reactTag
+                  filepath:(NSString *)filepath
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+{
+    [self.bridge.uiManager addUIBlock:^(__unused RCTUIManager *uiManager, NSDictionary<NSNumber *, RNAudioRecorderView *> *viewRegistry) {
+        RNAudioRecorderView *view = viewRegistry[reactTag];
+        if (![view isKindOfClass:[RNAudioRecorderView class]]) {
+            RCTLogError(@"Invalid view returned from registry, expecting RNCamera, got: %@", view);
+            reject(@"ViewNotFound", @"Cannot Find View", nil);
+        } else {
+            @try {
+                NSString *resPath = [view compress:filepath];
+                if (resPath) {
+                    resolve(@{
+                              @"filepath": resPath
+                              }
+                            );
+                } else {
+                    reject(@"Convert Error", @"Cannot Convert the File.", nil);
+                }
+            } @catch (NSException *exception) {
+                reject(@"Convert Error", @"Cannot Open the File.", nil);
+            }
+        }
+    }];
+}
+
 @end

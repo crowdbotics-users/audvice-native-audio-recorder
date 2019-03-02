@@ -558,4 +558,142 @@ void isRunningProc (  void *              inUserData,
     return basePath;
 }
 
+// compress file to m4a
++ (NSString *)compress:(NSString *)filepath {
+    // get information from input file
+    OSStatus error = 0;
+    // prepare input file
+    CFURLRef urlRef = (__bridge CFURLRef)[NSURL URLWithString:filepath];
+    ExtAudioFileRef inputFile;
+    if (ExtAudioFileOpenURL(urlRef, &inputFile))// fail to open
+    {
+        return nil;
+    }
+    AudioStreamBasicDescription inputFormat;
+    UInt32 size = sizeof(inputFormat);
+    // read audio format from input file
+    if (ExtAudioFileGetProperty(inputFile, kExtAudioFileProperty_FileDataFormat, &size, &inputFormat))
+    {
+        return nil;
+    }
+    
+    // Prepare output File
+    NSDate *now = [NSDate date];
+    NSDateFormatter *simpleFormat = [[NSDateFormatter alloc] init];
+    simpleFormat.dateFormat = @"yyyy-MM-dd-HH-mm-SS-zzz";
+    NSString *filename = [NSString stringWithFormat:@"%@.m4a", [simpleFormat stringFromDate:now]];
+    NSString *outPath = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
+    CFURLRef outUrlRef = (__bridge CFURLRef)[NSURL URLWithString:outPath];
+    
+    // set up audio format for output file
+    AudioStreamBasicDescription outputFormat;
+    memset(&outputFormat, 0, sizeof(outputFormat));
+    outputFormat.mSampleRate = inputFormat.mSampleRate;
+    outputFormat.mChannelsPerFrame = inputFormat.mChannelsPerFrame;
+    outputFormat.mFormatID = kAudioFormatMPEG4AAC;
+    outputFormat.mFormatFlags = kMPEG4Object_AAC_LC;
+    outputFormat.mBitsPerChannel = 0;// Compressed format
+    outputFormat.mFramesPerPacket = 1024;
+    outputFormat.mBytesPerPacket = 0;
+    
+    // mediate audio format
+    // it would be used temperal data
+    AudioStreamBasicDescription mediateFormat = {0};
+    mediateFormat.mSampleRate = inputFormat.mSampleRate;
+    mediateFormat.mChannelsPerFrame = inputFormat.mChannelsPerFrame;
+    mediateFormat.mFormatID = kAudioFormatLinearPCM;
+    mediateFormat.mFormatFlags = kLinearPCMFormatFlagIsSignedInteger | kLinearPCMFormatFlagIsPacked;
+    mediateFormat.mBitsPerChannel = 16;
+    mediateFormat.mBytesPerPacket = mediateFormat.mBytesPerFrame = (mediateFormat.mBitsPerChannel / 8) * mediateFormat.mChannelsPerFrame;
+    mediateFormat.mFramesPerPacket = 1;
+    
+    // create output file
+    ExtAudioFileRef outputFile;
+    ExtAudioFileCreateWithURL(outUrlRef, kAudioFileM4AType, &outputFormat, nil, kAudioFileFlags_EraseFile, &outputFile);
+    
+    size = sizeof(outputFormat);
+    
+    // set convert property by mediate format
+    // While reading, audio data will convert to mediate format
+    if ((error = ExtAudioFileSetProperty(inputFile, kExtAudioFileProperty_ClientDataFormat, size, &mediateFormat)))
+    {
+        if (inputFile) { ExtAudioFileDispose(inputFile); }
+        if (outputFile) { ExtAudioFileDispose(outputFile); }
+        return nil;
+    }
+    
+    // While writing, mediate data will convert to output format
+    if ((error = ExtAudioFileSetProperty(outputFile, kExtAudioFileProperty_ClientDataFormat, size, &mediateFormat)))
+    {
+        if (inputFile) { ExtAudioFileDispose(inputFile); }
+        if (outputFile) { ExtAudioFileDispose(outputFile); }
+        return nil;
+    }
+    
+    // Set Converter to input file
+    AudioConverterRef converter = 0;
+    size = sizeof(converter);
+    UInt32 bitRateIn = 96000;
+    
+    // get convert object
+    if (ExtAudioFileGetProperty(outputFile, kExtAudioFileProperty_AudioConverter, &size, &converter)) {
+        if (inputFile) { ExtAudioFileDispose(inputFile); }
+        if (outputFile) { ExtAudioFileDispose(outputFile); }
+        return nil;
+    }
+    
+    // set bitrate to output conversion
+    AudioConverterSetProperty(converter, kAudioConverterEncodeBitRate, sizeof(UInt32), &bitRateIn);
+    
+    // Set buffer for reading audio data from input file
+    UInt32 bufferByteSize = 32768;
+    char sourceBuffer[bufferByteSize];
+    
+    while (YES) {
+        // Set up output buffer list
+        AudioBufferList fillBufferList = {};
+        fillBufferList.mNumberBuffers = 1;
+        fillBufferList.mBuffers[0].mNumberChannels = outputFormat.mChannelsPerFrame;
+        fillBufferList.mBuffers[0].mDataByteSize = bufferByteSize;
+        fillBufferList.mBuffers[0].mData = sourceBuffer;
+        
+        /*
+         The client format is always linear PCM - so here we determine how many frames of lpcm
+         we can read/write given our buffer size
+         */
+        UInt32 numberOfFrames = 0;
+        if (mediateFormat.mBytesPerFrame > 0) {
+            // Handles bogus analyzer divide by zero warning mBytesPerFrame can't be a 0 and is protected by an Assert.
+            numberOfFrames = bufferByteSize / mediateFormat.mBytesPerFrame;
+        }
+        
+        error = ExtAudioFileRead(inputFile, &numberOfFrames, &fillBufferList);
+        
+        if (error) {
+            break;
+        }
+        
+        if (!numberOfFrames) {
+            // This is our termination condition.
+            error = noErr;
+            break;
+        }
+        
+        error = ExtAudioFileWrite(outputFile, numberOfFrames, &fillBufferList);
+        if (error) {
+            break;
+        }
+    }
+    // End convert
+    
+    // free unused objects
+    if (inputFile) { ExtAudioFileDispose(inputFile); }
+    if (outputFile) { ExtAudioFileDispose(outputFile); }
+    if (error) {
+        return nil;
+    } else {
+        return outPath;
+    }
+}
+
 @end

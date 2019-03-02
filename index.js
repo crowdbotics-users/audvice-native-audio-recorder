@@ -102,6 +102,10 @@ export default class AudioRecorder extends React.Component {
     return RNAudioRecorder.destroy(findNodeHandle(this.recorderView))
   }
 
+  compress(inputFile) {
+    return RNAudioRecorder.compress(findNodeHandle(this.recorderView), inputFile)
+  }
+
   render() {
     const {
       width,

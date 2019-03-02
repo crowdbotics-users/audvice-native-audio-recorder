@@ -60,4 +60,6 @@ typedef enum : NSUInteger {
 - (NSString*) soundFilePath;
 - (NSInteger) duration;
 
++ (NSString*) compress:(NSString*) filepath;
+
 @end

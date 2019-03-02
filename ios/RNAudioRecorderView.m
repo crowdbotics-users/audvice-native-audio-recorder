@@ -228,6 +228,10 @@
     return offset * soundFile.samplesPerPixel * 1000 / soundFile.audioFormat.mSampleRate;
 }
 
+- (NSString*) compress:(NSString *)filepath {
+    return [SoundFile compress:filepath];
+}
+
 #pragma mark - WaveFormDelegate
 - (void)onScrolled:(WaveFormView *)view toOffset:(NSInteger)offset {
     if (soundFile == nil) {
