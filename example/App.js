@@ -23,7 +23,9 @@ export default class App extends Component<Props> {
     this.state = {
       initialized: false,
       hasPermissions: false,
-      result: 'No Result'
+      result: 'No Result',
+      recordedFile:'',
+      convertedFile: ''
     }
   }
 
@@ -139,6 +141,7 @@ export default class App extends Component<Props> {
     this.audioRecoder.stopRecording()
       .then(res => {
         this.setState({
+          recordedFile: res.filepath,
           result: `${res.filepath} : ${res.duration} ms`
         })
         audioFile = res.filepath
@@ -260,7 +263,22 @@ export default class App extends Component<Props> {
     .then(res => {
       this.setState({
         result: `${res.filepath} : ${res.duration} ms`,
+        recordedFile: res.filepath,
         initialized: true
+      })
+    })
+    .catch((err) => {
+      this.setState({
+        result: `error: ${err}`
+      })
+    })
+  }
+
+  onPressConvert() {
+    this.audioRecoder.compress(this.state.recordedFile)
+    .then(res => {
+      this.setState({
+        result: `${res.filepath}`
       })
     })
     .catch((err) => {
@@ -312,6 +330,11 @@ export default class App extends Component<Props> {
             <Text style={{color: 'white'}}>pause</Text>
           </TouchableOpacity>
         </View>
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity style={styles.fullButton} onPress={this.onPressConvert.bind(this)}>
+            <Text style={{color: 'white'}}>Convert</Text>
+          </TouchableOpacity>
+        </View>
         <Text>{this.state.result}</Text>
       </View>
     );
@@ -338,4 +361,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center'
   },
+  fullButton: {
+    height: 60,
+    width: '25%',
+    backgroundColor: 'blue',
+    alignItems: 'center',
+    justifyContent: 'center'
+  }
 });

@@ -40,4 +40,6 @@
 - (long) getDuration;
 - (long) getPosition;
 
+- (NSString*) compress:(NSString*) filepath;
+
 @end
