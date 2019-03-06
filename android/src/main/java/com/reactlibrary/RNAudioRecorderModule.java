@@ -66,10 +66,10 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
                         promise.reject("FileNotFound", "Doesn't exist audio file");
                     } catch (IOException e) {
                         e.printStackTrace();
-                        promise.reject("InvalidFile", e.getCause());
+                        promise.reject("InvalidFile", e.getMessage());
                     } catch (SoundFile.InvalidInputException e) {
                         e.printStackTrace();
-                        promise.reject("InvalidFile", e.getCause());
+                        promise.reject("InvalidFile", e.getMessage());
                     }
                 } else {
                     promise.reject("ViewNotFound", "Cannot Find View");
@@ -119,7 +119,7 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
                         }
                     } catch (IOException e) {
                         e.printStackTrace();
-                        promise.reject("SaveError", e.getCause());
+                        promise.reject("SaveError", e.getMessage());
                     }
                 } else {
                     promise.reject("error", "Not found view");
@@ -219,13 +219,13 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
                         promise.reject("FileNotFound", "Doesn't exist audio file");
                     } catch (IOException e) {
                         e.printStackTrace();
-                        promise.reject("InvalidFile", e.getCause());
+                        promise.reject("InvalidFile", e.getMessage());
                     } catch (SoundFile.InvalidInputException e) {
                         e.printStackTrace();
-                        promise.reject("InvalidFile", e.getCause());
+                        promise.reject("InvalidFile", e.getMessage());
                     } catch (RNAudioRecorderView.InvalidParamException e) {
                         e.printStackTrace();
-                        promise.reject("InvalidParam", e.getCause());
+                        promise.reject("InvalidParam", e.getMessage());
                     }
                 } else {
                     promise.reject("ViewNotFound", "Cannot Find View");
@@ -257,13 +257,13 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
                         promise.reject("FileNotFound", "Doesn't exist audio file");
                     } catch (IOException e) {
                         e.printStackTrace();
-                        promise.reject("InvalidFile", e.getCause());
+                        promise.reject("InvalidFile", e.getMessage());
                     } catch (SoundFile.InvalidInputException e) {
                         e.printStackTrace();
-                        promise.reject("InvalidFile", e.getCause());
+                        promise.reject("InvalidFile", e.getMessage());
                     } catch (RNAudioRecorderView.InvalidParamException e) {
                         e.printStackTrace();
-                        promise.reject("InvalidParam", e.getCause());
+                        promise.reject("InvalidParam", e.getMessage());
                     } catch (IllegalStateException e) {
                         e.printStackTrace();
                         promise.reject("FailConversion", e.getMessage());
