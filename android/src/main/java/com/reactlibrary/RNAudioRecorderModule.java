@@ -66,10 +66,10 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
                         promise.reject("FileNotFound", "Doesn't exist audio file");
                     } catch (IOException e) {
                         e.printStackTrace();
-                        promise.reject("InvalidFile", e.getCause());
+                        promise.reject("InvalidFile", e.getMessage());
                     } catch (SoundFile.InvalidInputException e) {
                         e.printStackTrace();
-                        promise.reject("InvalidFile", e.getCause());
+                        promise.reject("InvalidFile", e.getMessage());
                     }
                 } else {
                     promise.reject("ViewNotFound", "Cannot Find View");
@@ -119,7 +119,7 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
                         }
                     } catch (IOException e) {
                         e.printStackTrace();
-                        promise.reject("SaveError", e.getCause());
+                        promise.reject("SaveError", e.getMessage());
                     }
                 } else {
                     promise.reject("error", "Not found view");
@@ -219,13 +219,54 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
                         promise.reject("FileNotFound", "Doesn't exist audio file");
                     } catch (IOException e) {
                         e.printStackTrace();
-                        promise.reject("InvalidFile", e.getCause());
+                        promise.reject("InvalidFile", e.getMessage());
                     } catch (SoundFile.InvalidInputException e) {
                         e.printStackTrace();
-                        promise.reject("InvalidFile", e.getCause());
+                        promise.reject("InvalidFile", e.getMessage());
                     } catch (RNAudioRecorderView.InvalidParamException e) {
                         e.printStackTrace();
-                        promise.reject("InvalidParam", e.getCause());
+                        promise.reject("InvalidParam", e.getMessage());
+                    }
+                } else {
+                    promise.reject("ViewNotFound", "Cannot Find View");
+                }
+            }
+        });
+    }
+
+    @ReactMethod
+    public void compress(final int viewId, final String filename, final Promise promise) {
+        UIManagerModule uiManager = getReactApplicationContext().getNativeModule(UIManagerModule.class);
+        uiManager.addUIBlock(new UIBlock() {
+            @Override
+            public void execute(NativeViewHierarchyManager nativeViewHierarchyManager) {
+                View view = nativeViewHierarchyManager.resolveView(viewId);
+                if (view instanceof RNAudioRecorderView) {
+                    try {
+                        RNAudioRecorderView audioRecorderView = (RNAudioRecorderView)view;
+                        String output = audioRecorderView.compress(filename);
+                        if (output == null) {
+                            promise.reject("InvalidFile", "Input file is invalid!");
+                        }else {
+                            WritableMap map = Arguments.createMap();
+                            map.putString("filepath", output);
+                            promise.resolve(map);
+                        }
+                    } catch (FileNotFoundException e) {
+                        e.printStackTrace();
+                        promise.reject("FileNotFound", "Doesn't exist audio file");
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        promise.reject("InvalidFile", e.getMessage());
+                    } catch (SoundFile.InvalidInputException e) {
+                        e.printStackTrace();
+                        promise.reject("InvalidFile", e.getMessage());
+                    } catch (RNAudioRecorderView.InvalidParamException e) {
+                        e.printStackTrace();
+                        promise.reject("InvalidParam", e.getMessage());
+                    } catch (IllegalStateException e) {
+                        e.printStackTrace();
+                        promise.reject("FailConversion", e.getMessage());
                     }
                 } else {
                     promise.reject("ViewNotFound", "Cannot Find View");
