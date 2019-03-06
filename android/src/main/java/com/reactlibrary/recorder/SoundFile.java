@@ -110,7 +110,6 @@ public class SoundFile {
 
         // define Files fro input and output files
         File inputFile = new File(inputPath);
-        File outputFile = new File(outPath);
 
         // Extract from input file
         MediaExtractor extractor = new MediaExtractor();
@@ -144,6 +143,31 @@ public class SoundFile {
         decoder.configure(inputFormat, null, null, 0);
         decoder.start();
 
+
+        // Set up Encoder
+        // Some devices have problems reading mono AAC files (e.g. Samsung S3). Making it stereo.
+        int numChannels = (channels == 1) ? 2 : channels;
+
+        String mimeType = "audio/mp4a-latm";
+        int bitrate = 96000;
+        MediaCodec encoder = MediaCodec.createEncoderByType(mimeType);
+        MediaFormat outputFormat = MediaFormat.createAudioFormat(mimeType, sampleRate, numChannels);
+        outputFormat.setInteger(MediaFormat.KEY_BIT_RATE, bitrate);
+        encoder.configure(outputFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
+        encoder.start();
+
+        ByteBuffer[] encoderInputBuffers = encoder.getInputBuffers();
+        ByteBuffer[] encoderOutputBuffers = encoder.getOutputBuffers();
+        MediaCodec.BufferInfo info2 = new MediaCodec.BufferInfo();
+
+        // Set up muxer
+        MediaMuxer muxer = new MediaMuxer(outPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
+        int audioTrack = muxer.addTrack(encoder.getOutputFormat());
+        muxer.start();
+
+        // Temp variables
+        int frame_size = 1024;  // number of samples per frame per channel for an mp4 (AAC) stream.
+        byte buffer[] = new byte[frame_size * numChannels * 2];  // a sample is coded with a short.
         int decodedSamplesSize = 0;  // size of the output buffer containing decoded samples.
         byte[] decodedSamples = null;
         ByteBuffer[] inputBuffers = decoder.getInputBuffers();
@@ -257,32 +281,13 @@ public class SoundFile {
         }
         int numSamples = decodedBytes.position() / (channels * 2);  // One sample = 2 bytes.
 
-        // Some devices have problems reading mono AAC files (e.g. Samsung S3). Making it stereo.
-        int numChannels = (channels == 1) ? 2 : channels;
-
-        String mimeType = "audio/mp4a-latm";
-        int bitrate = 96000;
-        MediaCodec encoder = MediaCodec.createEncoderByType(mimeType);
-        MediaFormat outputFormat = MediaFormat.createAudioFormat(mimeType, sampleRate, numChannels);
-        outputFormat.setInteger(MediaFormat.KEY_BIT_RATE, bitrate);
-        encoder.configure(outputFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
-        encoder.start();
-
-        ByteBuffer[] encoderInputBuffers = encoder.getInputBuffers();
-        ByteBuffer[] encoderOutputBuffers = encoder.getOutputBuffers();
-        MediaCodec.BufferInfo info2 = new MediaCodec.BufferInfo();
         done_reading = false;
-
-        int frame_size = 1024;  // number of samples per frame per channel for an mp4 (AAC) stream.
-        byte buffer[] = new byte[frame_size * numChannels * 2];  // a sample is coded with a short.
         decodedBytes.position(0);
         numSamples += (2 * frame_size);  // Adding 2 frames, Cf. priming frames for AAC.
+
         int num_frames = 0;
         int num_samples_left = numSamples;
 
-        MediaMuxer muxer = new MediaMuxer(outPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
-        int audioTrack = muxer.addTrack(encoder.getOutputFormat());
-        muxer.start();
 
         while (true) {
             // Feed the samples to the encoder.
