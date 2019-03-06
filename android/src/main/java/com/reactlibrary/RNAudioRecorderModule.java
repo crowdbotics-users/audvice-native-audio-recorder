@@ -233,4 +233,45 @@ public class RNAudioRecorderModule extends ReactContextBaseJavaModule {
             }
         });
     }
+
+    @ReactMethod
+    public void compress(final int viewId, final String filename, final Promise promise) {
+        UIManagerModule uiManager = getReactApplicationContext().getNativeModule(UIManagerModule.class);
+        uiManager.addUIBlock(new UIBlock() {
+            @Override
+            public void execute(NativeViewHierarchyManager nativeViewHierarchyManager) {
+                View view = nativeViewHierarchyManager.resolveView(viewId);
+                if (view instanceof RNAudioRecorderView) {
+                    try {
+                        RNAudioRecorderView audioRecorderView = (RNAudioRecorderView)view;
+                        String output = audioRecorderView.compress(filename);
+                        if (output == null) {
+                            promise.reject("InvalidFile", "Input file is invalid!");
+                        }else {
+                            WritableMap map = Arguments.createMap();
+                            map.putString("filepath", output);
+                            promise.resolve(map);
+                        }
+                    } catch (FileNotFoundException e) {
+                        e.printStackTrace();
+                        promise.reject("FileNotFound", "Doesn't exist audio file");
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        promise.reject("InvalidFile", e.getCause());
+                    } catch (SoundFile.InvalidInputException e) {
+                        e.printStackTrace();
+                        promise.reject("InvalidFile", e.getCause());
+                    } catch (RNAudioRecorderView.InvalidParamException e) {
+                        e.printStackTrace();
+                        promise.reject("InvalidParam", e.getCause());
+                    } catch (IllegalStateException e) {
+                        e.printStackTrace();
+                        promise.reject("FailConversion", e.getMessage());
+                    }
+                } else {
+                    promise.reject("ViewNotFound", "Cannot Find View");
+                }
+            }
+        });
+    }
 }

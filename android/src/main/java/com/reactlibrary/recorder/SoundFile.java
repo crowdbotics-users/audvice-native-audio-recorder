@@ -3,14 +3,20 @@ package com.reactlibrary.recorder;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaCodec;
+import android.media.MediaCodecInfo;
 import android.media.MediaExtractor;
 import android.media.MediaFormat;
+import android.media.MediaMuxer;
 import android.media.MediaRecorder;
 import android.os.Build;
 import android.os.Process;
+import android.util.Log;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.ShortBuffer;
@@ -570,6 +576,443 @@ public class SoundFile {
             outputStream.write(buffer, 0, numBytesLeft);
         }
         outputStream.close();
+    }
+
+    static public boolean compress(String inputPath, String outPath) throws
+            java.io.IOException, InvalidInputException, IllegalStateException{
+
+        // define Files fro input and output files
+        File inputFile = new File(inputPath);
+        File outputFile = new File(outPath);
+
+        // Extract from input file
+        MediaExtractor extractor = new MediaExtractor();
+        MediaFormat inputFormat = null;
+        extractor.setDataSource(inputFile.getPath());
+        int numTracks = extractor.getTrackCount();
+
+        // find and select the first audio track present in the file.
+        int inputFileSize = (int) inputFile.length();
+        int i;
+        for (i = 0; i < numTracks; i++) {
+            inputFormat = extractor.getTrackFormat(i);
+            if (inputFormat.getString(MediaFormat.KEY_MIME).startsWith("audio/")) {
+                extractor.selectTrack(i);
+                break;
+            }
+        }
+        if (i == numTracks) {
+            throw new InvalidInputException("No audio track found in " + inputFile);
+        }
+
+        int channels = inputFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
+        int sampleRate = inputFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE);
+
+        // Expected total number of samples per channel.
+        int expectedNumSamples =
+                (int) ((inputFormat.getLong(MediaFormat.KEY_DURATION) / 1000000.f) * sampleRate + 0.5f);
+
+        // Decoder from input file
+        MediaCodec decoder = MediaCodec.createDecoderByType(inputFormat.getString(MediaFormat.KEY_MIME));
+        decoder.configure(inputFormat, null, null, 0);
+        decoder.start();
+
+        int decodedSamplesSize = 0;  // size of the output buffer containing decoded samples.
+        byte[] decodedSamples = null;
+        ByteBuffer[] inputBuffers = decoder.getInputBuffers();
+        ByteBuffer[] outputBuffers = decoder.getOutputBuffers();
+        int sample_size;
+        MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
+        long presentation_time;
+        int tot_size_read = 0;
+        boolean done_reading = false;
+
+        // Set the size of the decoded samples buffer to 1MB (~6sec of a stereo stream at 44.1kHz).
+        // For longer streams, the buffer size will be increased later on, calculating a rough
+        // estimate of the total size needed to store all the samples in order to resize the buffer
+        // only once.
+        ByteBuffer decodedBytes = ByteBuffer.allocate(1 << 20);
+        Boolean firstSampleData = true;
+        while (true) {
+            // read data from file and feed it to the decoder input buffers.
+            int inputBufferIndex = decoder.dequeueInputBuffer(100);
+            if (!done_reading && inputBufferIndex >= 0) {
+                sample_size = extractor.readSampleData(inputBuffers[inputBufferIndex], 0);
+                if (firstSampleData
+                        && inputFormat.getString(MediaFormat.KEY_MIME).equals("audio/mp4a-latm")
+                        && sample_size == 2) {
+                    // For some reasons on some devices (e.g. the Samsung S3) you should not
+                    // provide the first two bytes of an AAC stream, otherwise the MediaCodec will
+                    // crash. These two bytes do not contain music data but basic info on the
+                    // stream (e.g. channel configuration and sampling frequency), and skipping them
+                    // seems OK with other devices (MediaCodec has already been configured and
+                    // already knows these parameters).
+                    extractor.advance();
+                    tot_size_read += sample_size;
+                } else if (sample_size < 0) {
+                    // All samples have been read.
+                    decoder.queueInputBuffer(
+                            inputBufferIndex, 0, 0, -1, MediaCodec.BUFFER_FLAG_END_OF_STREAM);
+                    done_reading = true;
+                } else {
+                    presentation_time = extractor.getSampleTime();
+                    decoder.queueInputBuffer(inputBufferIndex, 0, sample_size, presentation_time, 0);
+                    extractor.advance();
+                    tot_size_read += sample_size;
+                }
+                firstSampleData = false;
+            }
+
+            // Get decoded stream from the decoder output buffers.
+            int outputBufferIndex = decoder.dequeueOutputBuffer(info, 100);
+            if (outputBufferIndex >= 0 && info.size > 0) {
+                if (decodedSamplesSize < info.size) {
+                    decodedSamplesSize = info.size;
+                    decodedSamples = new byte[decodedSamplesSize];
+                }
+                outputBuffers[outputBufferIndex].get(decodedSamples, 0, info.size);
+                outputBuffers[outputBufferIndex].clear();
+                // Check if buffer is big enough. Resize it if it's too small.
+                if (decodedBytes.remaining() < info.size) {
+                    // Getting a rough estimate of the total size, allocate 20% more, and
+                    // make sure to allocate at least 5MB more than the initial size.
+                    int position = decodedBytes.position();
+                    int newSize = (int) ((position * (1.0 * inputFileSize / tot_size_read)) * 1.2);
+                    if (newSize - position < info.size + 5 * (1 << 20)) {
+                        newSize = position + info.size + 5 * (1 << 20);
+                    }
+                    ByteBuffer newDecodedBytes = null;
+                    // Try to allocate memory. If we are OOM, try to run the garbage collector.
+                    int retry = 10;
+                    while (retry > 0) {
+                        try {
+                            newDecodedBytes = ByteBuffer.allocate(newSize);
+                            break;
+                        } catch (OutOfMemoryError oome) {
+                            // setting android:largeHeap="true" in <application> seem to help not
+                            // reaching this section.
+                            retry--;
+                        }
+                    }
+                    if (retry == 0) {
+                        // Failed to allocate memory... Stop reading more data and finalize the
+                        // instance with the data decoded so far.
+                        break;
+                    }
+                    //ByteBuffer newDecodedBytes = ByteBuffer.allocate(newSize);
+                    decodedBytes.rewind();
+                    newDecodedBytes.put(decodedBytes);
+                    decodedBytes = newDecodedBytes;
+                    decodedBytes.position(position);
+                }
+                decodedBytes.put(decodedSamples, 0, info.size);
+                decoder.releaseOutputBuffer(outputBufferIndex, false);
+            } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
+                outputBuffers = decoder.getOutputBuffers();
+            } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                // Subsequent data will conform to new format.
+                // We could check that codec.getOutputFormat(), which is the new output format,
+                // is what we expect.
+            }
+            if ((info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0
+                    || (decodedBytes.position() / (2 * channels)) >= expectedNumSamples) {
+                // We got all the decoded data from the decoder. Stop here.
+                // Theoretically dequeueOutputBuffer(info, ...) should have set info.flags to
+                // MediaCodec.BUFFER_FLAG_END_OF_STREAM. However some phones (e.g. Samsung S3)
+                // won't do that for some files (e.g. with mono AAC files), in which case subsequent
+                // calls to dequeueOutputBuffer may result in the application crashing, without
+                // even an exception being thrown... Hence the second check.
+                // (for mono AAC files, the S3 will actually double each sample, as if the stream
+                // was stereo. The resulting stream is half what it's supposed to be and with a much
+                // lower pitch.)
+                break;
+            }
+        }
+        int numSamples = decodedBytes.position() / (channels * 2);  // One sample = 2 bytes.
+
+        // Some devices have problems reading mono AAC files (e.g. Samsung S3). Making it stereo.
+        int numChannels = (channels == 1) ? 2 : channels;
+
+        String mimeType = "audio/mp4a-latm";
+        int bitrate = 96000;
+        MediaCodec encoder = MediaCodec.createEncoderByType(mimeType);
+        MediaFormat outformat = MediaFormat.createAudioFormat(mimeType, sampleRate, numChannels);
+        outformat.setInteger(MediaFormat.KEY_BIT_RATE, bitrate);
+        encoder.configure(outformat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
+        encoder.start();
+
+        // Get an estimation of the encoded data based on the bitrate. Add 10% to it.
+        int estimatedEncodedSize = (int)(numSamples * (bitrate / 8) * 1.1 / sampleRate);
+        ByteBuffer encodedBytes = ByteBuffer.allocate(estimatedEncodedSize);
+        ByteBuffer[] encoderInputBuffers = encoder.getInputBuffers();
+        ByteBuffer[] encoderOutputBuffers = encoder.getOutputBuffers();
+        MediaCodec.BufferInfo info2 = new MediaCodec.BufferInfo();
+        done_reading = false;
+        presentation_time = 0;
+
+        int frame_size = 1024;  // number of samples per frame per channel for an mp4 (AAC) stream.
+        byte buffer[] = new byte[frame_size * numChannels * 2];  // a sample is coded with a short.
+        decodedBytes.position(0);
+        numSamples += (2 * frame_size);  // Adding 2 frames, Cf. priming frames for AAC.
+        int tot_num_frames = 1 + (numSamples / frame_size);  // first AAC frame = 2 bytes
+        if (numSamples % frame_size != 0) {
+            tot_num_frames++;
+        }
+        int[] frame_sizes = new int[tot_num_frames];
+        int num_out_frames = 0;
+        int num_frames=0;
+        int num_samples_left = numSamples;
+        int encodedSamplesSize = 0;  // size of the output buffer containing the encoded samples.
+        byte[] encodedSamples = null;
+        while (true) {
+            // Feed the samples to the encoder.
+            int inputBufferIndex = encoder.dequeueInputBuffer(100);
+            if (!done_reading && inputBufferIndex >= 0) {
+                if (num_samples_left <= 0) {
+                    // All samples have been read.
+                    encoder.queueInputBuffer(
+                            inputBufferIndex, 0, 0, -1, MediaCodec.BUFFER_FLAG_END_OF_STREAM);
+                    done_reading = true;
+                } else {
+                    encoderInputBuffers[inputBufferIndex].clear();
+                    if (buffer.length > encoderInputBuffers[inputBufferIndex].remaining()) {
+                        // Input buffer is smaller than one frame. This should never happen.
+                        continue;
+                    }
+                    // bufferSize is a hack to create a stereo file from a mono stream.
+                    int bufferSize = (channels == 1) ? (buffer.length / 2) : buffer.length;
+                    if (decodedBytes.remaining() < bufferSize) {
+                        for (i=decodedBytes.remaining(); i < bufferSize; i++) {
+                            buffer[i] = 0;  // pad with extra 0s to make a full frame.
+                        }
+                        decodedBytes.get(buffer, 0, decodedBytes.remaining());
+                    } else {
+                        decodedBytes.get(buffer, 0, bufferSize);
+                    }
+                    if (channels == 1) {
+                        for (i=bufferSize - 1; i >= 1; i -= 2) {
+                            buffer[2*i + 1] = buffer[i];
+                            buffer[2*i] = buffer[i-1];
+                            buffer[2*i - 1] = buffer[2*i + 1];
+                            buffer[2*i - 2] = buffer[2*i];
+                        }
+                    }
+                    num_samples_left -= frame_size;
+                    encoderInputBuffers[inputBufferIndex].put(buffer);
+                    presentation_time = (long) (((num_frames++) * frame_size * 1e6) / sampleRate);
+                    encoder.queueInputBuffer(
+                            inputBufferIndex, 0, buffer.length, presentation_time, 0);
+                }
+            }
+
+            // Get the encoded samples from the encoder.
+            int outputBufferIndex = encoder.dequeueOutputBuffer(info2, 100);
+            if (outputBufferIndex >= 0 && info2.size > 0 && info2.presentationTimeUs >=0) {
+                if (num_out_frames < frame_sizes.length) {
+                    frame_sizes[num_out_frames++] = info2.size;
+                }
+                if (encodedSamplesSize < info2.size) {
+                    encodedSamplesSize = info2.size;
+                    encodedSamples = new byte[encodedSamplesSize];
+                }
+                encoderOutputBuffers[outputBufferIndex].get(encodedSamples, 0, info2.size);
+                encoderOutputBuffers[outputBufferIndex].clear();
+                encoder.releaseOutputBuffer(outputBufferIndex, false);
+                if (encodedBytes.remaining() < info2.size) {  // Hopefully this should not happen.
+                    estimatedEncodedSize = (int)(estimatedEncodedSize * 1.2);  // Add 20%.
+                    ByteBuffer newEncodedBytes = ByteBuffer.allocate(estimatedEncodedSize);
+                    int position = encodedBytes.position();
+                    encodedBytes.rewind();
+                    newEncodedBytes.put(encodedBytes);
+                    encodedBytes = newEncodedBytes;
+                    encodedBytes.position(position);
+                }
+                encodedBytes.put(encodedSamples, 0, info2.size);
+            } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
+                encoderOutputBuffers = encoder.getOutputBuffers();
+            } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                // Subsequent data will conform to new format.
+                // We could check that codec.getOutputFormat(), which is the new output format,
+                // is what we expect.
+            }
+            if ((info2.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
+                // We got all the encoded data from the encoder.
+                break;
+            }
+        }
+        int encoded_size = encodedBytes.position();
+        encodedBytes.rewind();
+
+        // Write the encoded stream to the file, 4kB at a time.
+        buffer = new byte[4096];
+        try {
+            FileOutputStream outputStream = new FileOutputStream(outputFile);
+            outputStream.write(
+                    MP4Header.getMP4Header(sampleRate, numChannels, frame_sizes, bitrate));
+            while (encoded_size - encodedBytes.position() > buffer.length) {
+                encodedBytes.get(buffer);
+                outputStream.write(buffer);
+            }
+            int remaining = encoded_size - encodedBytes.position();
+            if (remaining > 0) {
+                encodedBytes.get(buffer, 0, remaining);
+                outputStream.write(buffer, 0, remaining);
+            }
+            outputStream.close();
+        } catch (IOException e) {
+            Log.e("Ringdroid", "Failed to create the .m4a file.");
+        }
+
+        extractor.release();
+        extractor = null;
+        decoder.stop();
+        decoder.release();
+        decoder = null;
+        encoder.stop();
+        encoder.release();
+        encoder = null;
+
+        return true;
+    }
+
+    public void WriteM4aFile(File outputFile)
+            throws java.io.IOException {
+        int numSamples = mNumSamples;
+        // Some devices have problems reading mono AAC files (e.g. Samsung S3). Making it stereo.
+        int numChannels = (mChannels == 1) ? 2 : mChannels;
+
+        String mimeType = "audio/mp4a-latm";
+        int bitrate = 96000;  // rule of thumb for a good quality: 64kbps per channel.
+        MediaCodec encoder = MediaCodec.createEncoderByType(mimeType);
+        MediaFormat format = MediaFormat.createAudioFormat(mimeType, mSampleRate, numChannels);
+        format.setInteger(MediaFormat.KEY_BIT_RATE, bitrate);
+        encoder.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
+        encoder.start();
+
+        // Get an estimation of the encoded data based on the bitrate. Add 10% to it.
+        int estimatedEncodedSize = (int)(mNumSamples * (bitrate / 8) * 1.1 / mSampleRate);
+        ByteBuffer encodedBytes = ByteBuffer.allocate(estimatedEncodedSize);
+        ByteBuffer[] inputBuffers = encoder.getInputBuffers();
+        ByteBuffer[] outputBuffers = encoder.getOutputBuffers();
+        MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
+        boolean done_reading = false;
+        long presentation_time = 0;
+
+        int frame_size = 1024;  // number of samples per frame per channel for an mp4 (AAC) stream.
+        byte buffer[] = new byte[frame_size * numChannels * 2];  // a sample is coded with a short.
+        mDecodedBytes.position(0);
+        numSamples += (2 * frame_size);  // Adding 2 frames, Cf. priming frames for AAC.
+        int tot_num_frames = 1 + (numSamples / frame_size);  // first AAC frame = 2 bytes
+        if (numSamples % frame_size != 0) {
+            tot_num_frames++;
+        }
+        int[] frame_sizes = new int[tot_num_frames];
+        int num_out_frames = 0;
+        int num_frames=0;
+        int num_samples_left = numSamples;
+        int encodedSamplesSize = 0;  // size of the output buffer containing the encoded samples.
+        byte[] encodedSamples = null;
+        while (true) {
+            // Feed the samples to the encoder.
+            int inputBufferIndex = encoder.dequeueInputBuffer(100);
+            if (!done_reading && inputBufferIndex >= 0) {
+                if (num_samples_left <= 0) {
+                    // All samples have been read.
+                    encoder.queueInputBuffer(
+                            inputBufferIndex, 0, 0, -1, MediaCodec.BUFFER_FLAG_END_OF_STREAM);
+                    done_reading = true;
+                } else {
+                    inputBuffers[inputBufferIndex].clear();
+                    if (buffer.length > inputBuffers[inputBufferIndex].remaining()) {
+                        // Input buffer is smaller than one frame. This should never happen.
+                        continue;
+                    }
+                    // bufferSize is a hack to create a stereo file from a mono stream.
+                    int bufferSize = (mChannels == 1) ? (buffer.length / 2) : buffer.length;
+                    if (mDecodedBytes.remaining() < bufferSize) {
+                        for (int i=mDecodedBytes.remaining(); i < bufferSize; i++) {
+                            buffer[i] = 0;  // pad with extra 0s to make a full frame.
+                        }
+                        mDecodedBytes.get(buffer, 0, mDecodedBytes.remaining());
+                    } else {
+                        mDecodedBytes.get(buffer, 0, bufferSize);
+                    }
+                    if (mChannels == 1) {
+                        for (int i=bufferSize - 1; i >= 1; i -= 2) {
+                            buffer[2*i + 1] = buffer[i];
+                            buffer[2*i] = buffer[i-1];
+                            buffer[2*i - 1] = buffer[2*i + 1];
+                            buffer[2*i - 2] = buffer[2*i];
+                        }
+                    }
+                    num_samples_left -= frame_size;
+                    inputBuffers[inputBufferIndex].put(buffer);
+                    presentation_time = (long) (((num_frames++) * frame_size * 1e6) / mSampleRate);
+                    encoder.queueInputBuffer(
+                            inputBufferIndex, 0, buffer.length, presentation_time, 0);
+                }
+            }
+
+            // Get the encoded samples from the encoder.
+            int outputBufferIndex = encoder.dequeueOutputBuffer(info, 100);
+            if (outputBufferIndex >= 0 && info.size > 0 && info.presentationTimeUs >=0) {
+                if (num_out_frames < frame_sizes.length) {
+                    frame_sizes[num_out_frames++] = info.size;
+                }
+                if (encodedSamplesSize < info.size) {
+                    encodedSamplesSize = info.size;
+                    encodedSamples = new byte[encodedSamplesSize];
+                }
+                outputBuffers[outputBufferIndex].get(encodedSamples, 0, info.size);
+                outputBuffers[outputBufferIndex].clear();
+                encoder.releaseOutputBuffer(outputBufferIndex, false);
+                if (encodedBytes.remaining() < info.size) {  // Hopefully this should not happen.
+                    estimatedEncodedSize = (int)(estimatedEncodedSize * 1.2);  // Add 20%.
+                    ByteBuffer newEncodedBytes = ByteBuffer.allocate(estimatedEncodedSize);
+                    int position = encodedBytes.position();
+                    encodedBytes.rewind();
+                    newEncodedBytes.put(encodedBytes);
+                    encodedBytes = newEncodedBytes;
+                    encodedBytes.position(position);
+                }
+                encodedBytes.put(encodedSamples, 0, info.size);
+            } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
+                outputBuffers = encoder.getOutputBuffers();
+            } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                // Subsequent data will conform to new format.
+                // We could check that codec.getOutputFormat(), which is the new output format,
+                // is what we expect.
+            }
+            if ((info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
+                // We got all the encoded data from the encoder.
+                break;
+            }
+        }
+        int encoded_size = encodedBytes.position();
+        encodedBytes.rewind();
+        encoder.stop();
+        encoder.release();
+        encoder = null;
+
+        // Write the encoded stream to the file, 4kB at a time.
+        buffer = new byte[4096];
+        try {
+            FileOutputStream outputStream = new FileOutputStream(outputFile);
+            outputStream.write(
+                    MP4Header.getMP4Header(mSampleRate, numChannels, frame_sizes, bitrate));
+            while (encoded_size - encodedBytes.position() > buffer.length) {
+                encodedBytes.get(buffer);
+                outputStream.write(buffer);
+            }
+            int remaining = encoded_size - encodedBytes.position();
+            if (remaining > 0) {
+                encodedBytes.get(buffer, 0, remaining);
+                outputStream.write(buffer, 0, remaining);
+            }
+            outputStream.close();
+        } catch (IOException e) {
+            Log.e("Ringdroid", "Failed to create the .m4a file.");
+        }
     }
 
     // Method used to swap the left and right channels (needed for stereo WAV files).

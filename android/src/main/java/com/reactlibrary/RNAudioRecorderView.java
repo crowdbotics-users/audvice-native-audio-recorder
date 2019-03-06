@@ -315,6 +315,25 @@ public class RNAudioRecorderView extends RelativeLayout {
         }
     }
 
+    // init cut file with filename, if file not exist, return fail with exception.
+    public String compress(String filename) throws IOException,
+            FileNotFoundException,
+            SoundFile.InvalidInputException,
+            InvalidParamException,
+            IllegalStateException
+    {
+//        SoundFile tempFile = SoundFile.create(filename, mPixelsPerSec, -1, -1, soundProgressListener);
+//
+//        if (tempFile == null) {
+//            throw new FileNotFoundException();
+//        }
+        String output = makeRandomFilePath("m4a");
+//        File outputFile = new File(output);
+//        tempFile.WriteM4aFile(outputFile);
+        SoundFile.compress(filename, output);
+        return output;
+    }
+
     // return duration of audio file
     public long getDuration() {
         if (mSoundFile == null) return 0;
