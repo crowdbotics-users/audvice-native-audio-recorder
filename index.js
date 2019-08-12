@@ -22,12 +22,13 @@ export default class AudioRecorder extends React.Component {
   }
 
   componentDidMount() {
-    DeviceEventEmitter.addListener('onPlayFinished', this._onPlayFinished.bind(this))
-    DeviceEventEmitter.addListener('onScrolled', this._onScrolled.bind(this))
+    this.onPlayFinishedSubscription = DeviceEventEmitter.addListener('onPlayFinished', this._onPlayFinished.bind(this))
+    this.onScrolledSubscription = DeviceEventEmitter.addListener('onScrolled', this._onScrolled.bind(this))
   }
 
   componentWillUnmount() {
-    this.eventSubscription.remove()
+    this.onPlayFinishedSubscription.remove()
+    this.onScrolledSubscription.remove()
   }
 
   _onEventCallback(event) {
